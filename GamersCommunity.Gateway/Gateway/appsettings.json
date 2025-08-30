@@ -28,15 +28,11 @@
   },
   "GatewayRouting": {
     "QueueByGame": {
-      "worldofwarcraft": "wow_queue",
-      "mainsite": "mainsite_queue"
+      "sample": "sample_queue"
     },
     "AllowedTablesByGame": {
-      "worldofwarcraft": [
-        "Classes"
-      ],
-      "mainsite": [
-        "Countries"
+      "sample": [
+        "Users"
       ]
     },
     "AllowedActionsByResource": {
