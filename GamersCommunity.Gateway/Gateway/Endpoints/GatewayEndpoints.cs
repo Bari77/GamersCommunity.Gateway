@@ -3,6 +3,7 @@ using Gateway.Abstractions;
 using Gateway.Core;
 using Gateway.Security;
 using Microsoft.AspNetCore.Authentication;
+using Serilog;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -20,10 +21,15 @@ namespace Gateway.Endpoints
         {
             // Options + services
             services.AddOptions();
-            services.AddTransient<IClaimsTransformation, KeycloakClaimsTransformation>();
-            services.AddSingleton<RabbitMQProducer>();
-            services.AddSingleton<IGatewayRouter, GatewayRouter>();
-            services.AddSingleton<IRabbitRpcClient, RabbitRpcClient>();
+
+            services.AddScoped<IClaimsTransformation, KeycloakClaimsTransformation>();
+
+            services.AddSingleton<Serilog.ILogger>(sp => Log.Logger);
+
+            services.AddScoped<RabbitMQProducer>();
+            services.AddScoped<IRabbitRpcClient, RabbitRpcClient>();
+
+            services.AddScoped<IGatewayRouter, GatewayRouter>();
             return services;
         }
 

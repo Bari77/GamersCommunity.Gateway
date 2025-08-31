@@ -7,7 +7,7 @@ namespace Gateway.Core
     {
         public async Task<string> CallAsync(string queue, string payload, CancellationToken ct = default)
         {
-            var props = await producer.SendMessageAsync(queue, payload);
+            var props = await producer.SendMessageAsync(queue, payload, ct);
             return await producer.GetResponseAsync(props, ct);
         }
     }

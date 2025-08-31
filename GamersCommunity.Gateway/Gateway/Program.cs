@@ -68,7 +68,6 @@ namespace APIGateway
                 // Clear all default logging providers, if you need to print in console,
                 // http headers or DB queries, comment this line
                 builder.Logging.ClearProviders();
-                builder.Host.UseSerilog(Log.Logger, dispose: false);
 
                 #endregion
 
