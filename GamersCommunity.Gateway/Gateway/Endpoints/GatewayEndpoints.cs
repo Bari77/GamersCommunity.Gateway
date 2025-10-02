@@ -85,7 +85,7 @@ namespace Gateway.Endpoints
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
-                return Results.Ok(result);
+                return Results.Text(result, "application/json");
             }).RequireAuthorization();
 
             // GET /api/{game}/{table}/{id:int} -> Get
@@ -110,7 +110,7 @@ namespace Gateway.Endpoints
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
-                return Results.Ok(result);
+                return Results.Text(result, "application/json");
             }).RequireAuthorization();
 
             // PUT /api/{game}/{table}/{id:int} -> Update
@@ -190,8 +190,8 @@ namespace Gateway.Endpoints
                 };
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
-                var response = await rpc.CallAsync(queue, payload, ct);
-                return Results.Ok(response);
+                var result = await rpc.CallAsync(queue, payload, ct);
+                return Results.Text(result, "application/json");
             }).RequireAuthorization();
 
             app.MapPost("/api/{game}/{table}/{id:int}/actions/{action}", async (
@@ -219,8 +219,8 @@ namespace Gateway.Endpoints
                 };
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
-                var response = await rpc.CallAsync(queue, payload, ct);
-                return Results.Ok(response);
+                var result = await rpc.CallAsync(queue, payload, ct);
+                return Results.Text(result, "application/json");
             }).RequireAuthorization();
 
             return app;

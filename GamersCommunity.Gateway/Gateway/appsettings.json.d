@@ -32,12 +32,12 @@
     },
     "AllowedTablesByGame": {
       "sample": [
-        "Users"
+        "Table"
       ]
     },
     "AllowedActionsByResource": {
-      "worldofwarcraft/Classes": [
-        "Test"
+      "sample/Table": [
+        "CustomAction"
       ]
     }
   }
