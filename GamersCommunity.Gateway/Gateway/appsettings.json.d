@@ -27,10 +27,10 @@
     ]
   },
   "GatewayRouting": {
-    "QueueByGame": {
+    "QueueByMS": {
       "sample": "sample_queue"
     },
-    "AllowedTablesByGame": {
+    "AllowedTablesByMS": {
       "sample": [
         "Table"
       ]

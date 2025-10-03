@@ -9,47 +9,79 @@ using System.Text.Json.Serialization;
 
 namespace Gateway.Endpoints
 {
+    /// <summary>
+    /// Provides extension methods for configuring and registering 
+    /// gateway-related services in the dependency injection container.
+    /// </summary>
     public static class GatewayEndpoints
     {
+        /// <summary>
+        /// Default JSON serializer options used across the gateway.  
+        /// Configured with camelCase naming policy and ignores null values when writing.
+        /// </summary>
         private static readonly JsonSerializerOptions JsonOpts = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
+        /// <summary>
+        /// Registers all required gateway services into the dependency injection container.
+        /// </summary>
+        /// <param name="services">
+        /// The service collection to which the gateway services will be added.
+        /// </param>
+        /// <returns>
+        /// The updated <see cref="IServiceCollection"/> with all gateway services registered.
+        /// </returns>
+        /// <remarks>
+        /// This method configures the following:
+        /// <list type="bullet">
+        /// <item><description>Options support for dependency injection.</description></item>
+        /// <item><description>Keycloak claims transformation for authentication.</description></item>
+        /// <item><description>Serilog logger as a singleton instance.</description></item>
+        /// <item><description>RabbitMQ producer and RPC client for messaging.</description></item>
+        /// <item><description>Gateway router for queue and authorization resolution.</description></item>
+        /// </list>
+        /// </remarks>
         public static IServiceCollection AddGatewayServices(this IServiceCollection services)
         {
             // Options + services
             services.AddOptions();
 
+            // Authentication claims transformation (Keycloak)
             services.AddScoped<IClaimsTransformation, KeycloakClaimsTransformation>();
 
+            // Serilog logger instance
             services.AddSingleton<Serilog.ILogger>(sp => Log.Logger);
 
+            // Messaging services
             services.AddScoped<RabbitMQProducer>();
             services.AddScoped<IRabbitRpcClient, RabbitRpcClient>();
 
+            // Gateway router service
             services.AddScoped<IGatewayRouter, GatewayRouter>();
             return services;
         }
 
         /// <summary>
         /// Mappe les endpoints génériques de la gateway.
+        /// <param name="app">The app</param>
         /// </summary>
         public static IEndpointRouteBuilder MapGatewayEndpoints(this IEndpointRouteBuilder app)
         {
-            // POST /api/{game}/{table} -> Create
-            app.MapPost("/api/{game}/{table}", async (
-                string game,
+            // POST /api/{ms}/{table} -> Create
+            app.MapPost("/api/{ms}/{table}", async (
+                string ms,
                 string table,
                 HttpRequest req,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(game, table)) return Results.NotFound($"Unknown table '{table}' for game '{game}'.");
+                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
 
-                var queue = router.ResolveQueue(game);
+                var queue = router.ResolveQueue(ms);
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
 
                 var msg = new RabbitMQTableMessage
@@ -62,20 +94,20 @@ namespace Gateway.Endpoints
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var id = await rpc.CallAsync(queue, payload, ct);
 
-                return Results.Created($"/api/{game}/{table}/{id}", id);
+                return Results.Created($"/api/{ms}/{table}/{id}", id);
             }).RequireAuthorization();
 
-            // GET /api/{game}/{table} -> List
-            app.MapGet("/api/{game}/{table}", async (
-                string game,
+            // GET /api/{ms}/{table} -> List
+            app.MapGet("/api/{ms}/{table}", async (
+                string ms,
                 string table,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(game, table)) return Results.NotFound($"Unknown table '{table}' for game '{game}'.");
+                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
 
-                var queue = router.ResolveQueue(game);
+                var queue = router.ResolveQueue(ms);
 
                 var msg = new RabbitMQTableMessage
                 {
@@ -88,18 +120,18 @@ namespace Gateway.Endpoints
                 return Results.Text(result, "application/json");
             }).RequireAuthorization();
 
-            // GET /api/{game}/{table}/{id:int} -> Get
-            app.MapGet("/api/{game}/{table}/{id:int}", async (
-                string game,
+            // GET /api/{ms}/{table}/{id:int} -> Get
+            app.MapGet("/api/{ms}/{table}/{id:int}", async (
+                string ms,
                 string table,
                 int id,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(game, table)) return Results.NotFound($"Unknown table '{table}' for game '{game}'.");
+                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
 
-                var queue = router.ResolveQueue(game);
+                var queue = router.ResolveQueue(ms);
 
                 var msg = new RabbitMQTableMessage
                 {
@@ -113,9 +145,9 @@ namespace Gateway.Endpoints
                 return Results.Text(result, "application/json");
             }).RequireAuthorization();
 
-            // PUT /api/{game}/{table}/{id:int} -> Update
-            app.MapPut("/api/{game}/{table}/{id:int}", async (
-                string game,
+            // PUT /api/{ms}/{table}/{id:int} -> Update
+            app.MapPut("/api/{ms}/{table}/{id:int}", async (
+                string ms,
                 string table,
                 int id,
                 HttpRequest req,
@@ -123,9 +155,9 @@ namespace Gateway.Endpoints
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(game, table)) return Results.NotFound($"Unknown table '{table}' for game '{game}'.");
+                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
 
-                var queue = router.ResolveQueue(game);
+                var queue = router.ResolveQueue(ms);
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
 
                 var msg = new RabbitMQTableMessage
@@ -141,18 +173,18 @@ namespace Gateway.Endpoints
                 return Results.NoContent();
             }).RequireAuthorization();
 
-            // DELETE /api/{game}/{table}/{id:int} -> Delete
-            app.MapDelete("/api/{game}/{table}/{id:int}", async (
-                string game,
+            // DELETE /api/{ms}/{table}/{id:int} -> Delete
+            app.MapDelete("/api/{ms}/{table}/{id:int}", async (
+                string ms,
                 string table,
                 int id,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(game, table)) return Results.NotFound($"Unknown table '{table}' for game '{game}'.");
+                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
 
-                var queue = router.ResolveQueue(game);
+                var queue = router.ResolveQueue(ms);
 
                 var msg = new RabbitMQTableMessage
                 {
@@ -166,8 +198,8 @@ namespace Gateway.Endpoints
                 return Results.NoContent();
             }).RequireAuthorization();
 
-            app.MapPost("/api/{game}/{table}/actions/{action}", async (
-                string game,
+            app.MapPost("/api/{ms}/{table}/actions/{action}", async (
+                string ms,
                 string table,
                 string action,
                 HttpRequest req,
@@ -175,10 +207,10 @@ namespace Gateway.Endpoints
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(game, table)) return Results.NotFound($"Unknown table '{table}' for game '{game}'.");
-                if (!router.IsActionAllowed(game, table, action)) return Results.NotFound($"Unknown action '{action}' for '{game}/{table}'.");
+                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
+                if (!router.IsActionAllowed(ms, table, action)) return Results.BadRequest("Micro service action disallowed");
 
-                var queue = router.ResolveQueue(game);
+                var queue = router.ResolveQueue(ms);
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
 
                 var msg = new RabbitMQTableMessage
@@ -194,8 +226,8 @@ namespace Gateway.Endpoints
                 return Results.Text(result, "application/json");
             }).RequireAuthorization();
 
-            app.MapPost("/api/{game}/{table}/{id:int}/actions/{action}", async (
-                string game,
+            app.MapPost("/api/{ms}/{table}/{id:int}/actions/{action}", async (
+                string ms,
                 string table,
                 int id,
                 string action,
@@ -204,10 +236,10 @@ namespace Gateway.Endpoints
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(game, table)) return Results.NotFound($"Unknown table '{table}' for game '{game}'.");
-                if (!router.IsActionAllowed(game, table, action)) return Results.NotFound($"Unknown action '{action}' for '{game}/{table}'.");
+                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
+                if (!router.IsActionAllowed(ms, table, action)) return Results.BadRequest("Micro service action disallowed");
 
-                var queue = router.ResolveQueue(game);
+                var queue = router.ResolveQueue(ms);
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
 
                 var msg = new RabbitMQTableMessage
