@@ -76,21 +76,27 @@ namespace APIGateway
                 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddJwtBearer(o =>
                     {
-                        o.Authority = appSettings.Keycloak.Authority;
-                        o.Audience = appSettings.Keycloak.Audience;
-                        o.MetadataAddress = $"{appSettings.Keycloak.Authority}/.well-known/openid-configuration";
-                        o.RequireHttpsMetadata = appSettings.Keycloak.RequireHttpsMetadata;
+                        var keycloak = appSettings.Keycloak;
 
+                        // Base Keycloak info
+                        o.Authority = keycloak.Authority;
+                        o.Audience = keycloak.Audience;
+                        o.MetadataAddress = $"{keycloak.Authority}/.well-known/openid-configuration";
+                        o.RequireHttpsMetadata = keycloak.RequireHttpsMetadata;
+
+                        // Token validation
                         o.TokenValidationParameters = new TokenValidationParameters
                         {
-                            ValidateAudience = true,
-                            ValidAudience = appSettings.Keycloak.Audience,
                             ValidateIssuer = true,
-                            ValidIssuer = appSettings.Keycloak.Authority,
-                            NameClaimType = "preferred_username"
-                        };
+                            ValidIssuer = keycloak.Authority,
 
-                        o.RefreshOnIssuerKeyNotFound = true;
+                            ValidateAudience = true,
+                            ValidAudiences = ["account", "gc-front", "gc-gateway-api"],
+
+                            ValidateLifetime = true,
+                            NameClaimType = "preferred_username",
+                            RoleClaimType = "roles"
+                        };
 
                         // Avoid HTML redirect on 401 when using APIs
                         o.Events = new JwtBearerEvents
@@ -102,7 +108,10 @@ namespace APIGateway
                                 return Task.CompletedTask;
                             }
                         };
+
+                        o.RefreshOnIssuerKeyNotFound = true;
                     });
+
                 builder.Services.AddAuthorization();
 
                 builder.Services.AddGatewayServices();
