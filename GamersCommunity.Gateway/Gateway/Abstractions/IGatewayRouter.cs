@@ -36,5 +36,14 @@
         /// <c>true</c> if the action is authorized on the table for the specified microservice otherwise, <c>false</c>.
         /// </returns>
         bool IsActionAllowed(string ms, string table, string action);
+
+        /// <summary>
+        /// Determines whether a specific resource (optionally action) is public or private.
+        /// </summary>
+        /// <param name="microservice">Microservice identifier (<c>ms</c>).</param>
+        /// <param name="table">Table or resource name.</param>
+        /// <param name="action">Optional action name (e.g., <c>List</c>, <c>Create</c>).</param>
+        /// <returns><see langword="true"/> if the resource is public; otherwise <see langword="false"/>.</returns>
+        bool IsPublic(string microservice, string table, string? action = null);
     }
 }

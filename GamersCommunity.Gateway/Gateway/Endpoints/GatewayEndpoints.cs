@@ -1,6 +1,7 @@
 ﻿using GamersCommunity.Core.Rabbit;
 using Gateway.Abstractions;
 using Gateway.Core;
+using Gateway.Extensions;
 using Gateway.Security;
 using Microsoft.AspNetCore.Authentication;
 using Serilog;
@@ -82,8 +83,9 @@ namespace Gateway.Endpoints
                 if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
 
                 var queue = router.ResolveQueue(ms);
-                var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
+                if (queue is null) return Results.BadRequest("Unknown microservice.");
 
+                var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
                 var msg = new RabbitMQTableMessage
                 {
                     Table = table,
@@ -95,7 +97,7 @@ namespace Gateway.Endpoints
                 var id = await rpc.CallAsync(queue, payload, ct);
 
                 return Results.Created($"/api/{ms}/{table}/{id}", id);
-            }).RequireAuthorization();
+            }).RequireAuthorizationIfNotPublic("Create");
 
             // GET /api/{ms}/{table} -> List
             app.MapGet("/api/{ms}/{table}", async (
@@ -108,6 +110,7 @@ namespace Gateway.Endpoints
                 if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
 
                 var queue = router.ResolveQueue(ms);
+                if (queue is null) return Results.BadRequest("Unknown microservice.");
 
                 var msg = new RabbitMQTableMessage
                 {
@@ -118,9 +121,9 @@ namespace Gateway.Endpoints
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
                 return Results.Text(result, "application/json");
-            }).RequireAuthorization();
+            }).RequireAuthorizationIfNotPublic("List");
 
-            // GET /api/{ms}/{table}/{id:int} -> Get
+            // GET /api/{ms}/{table}/{id:int} -> Get by ID
             app.MapGet("/api/{ms}/{table}/{id:int}", async (
                 string ms,
                 string table,
@@ -132,6 +135,7 @@ namespace Gateway.Endpoints
                 if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
 
                 var queue = router.ResolveQueue(ms);
+                if (queue is null) return Results.BadRequest("Unknown microservice.");
 
                 var msg = new RabbitMQTableMessage
                 {
@@ -143,7 +147,7 @@ namespace Gateway.Endpoints
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
                 return Results.Text(result, "application/json");
-            }).RequireAuthorization();
+            }).RequireAuthorizationIfNotPublic("Get");
 
             // PUT /api/{ms}/{table}/{id:int} -> Update
             app.MapPut("/api/{ms}/{table}/{id:int}", async (
@@ -158,8 +162,9 @@ namespace Gateway.Endpoints
                 if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
 
                 var queue = router.ResolveQueue(ms);
-                var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
+                if (queue is null) return Results.BadRequest("Unknown microservice.");
 
+                var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
                 var msg = new RabbitMQTableMessage
                 {
                     Table = table,
@@ -171,7 +176,7 @@ namespace Gateway.Endpoints
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 await rpc.CallAsync(queue, payload, ct);
                 return Results.NoContent();
-            }).RequireAuthorization();
+            }).RequireAuthorizationIfNotPublic("Update");
 
             // DELETE /api/{ms}/{table}/{id:int} -> Delete
             app.MapDelete("/api/{ms}/{table}/{id:int}", async (
@@ -185,6 +190,7 @@ namespace Gateway.Endpoints
                 if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
 
                 var queue = router.ResolveQueue(ms);
+                if (queue is null) return Results.BadRequest("Unknown microservice.");
 
                 var msg = new RabbitMQTableMessage
                 {
@@ -196,8 +202,9 @@ namespace Gateway.Endpoints
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 await rpc.CallAsync(queue, payload, ct);
                 return Results.NoContent();
-            }).RequireAuthorization();
+            }).RequireAuthorizationIfNotPublic("Delete");
 
+            // POST /api/{ms}/{table}/actions/{action} -> Post custom action
             app.MapPost("/api/{ms}/{table}/actions/{action}", async (
                 string ms,
                 string table,
@@ -211,8 +218,9 @@ namespace Gateway.Endpoints
                 if (!router.IsActionAllowed(ms, table, action)) return Results.BadRequest("Micro service action disallowed");
 
                 var queue = router.ResolveQueue(ms);
-                var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
+                if (queue is null) return Results.BadRequest("Unknown microservice.");
 
+                var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
                 var msg = new RabbitMQTableMessage
                 {
                     Table = table,
@@ -224,8 +232,9 @@ namespace Gateway.Endpoints
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
                 return Results.Text(result, "application/json");
-            }).RequireAuthorization();
+            }).RequireAuthorizationIfNotPublic();
 
+            // POST /api/{ms}/{table}/{id:int}/actions/{action} -> Post custom action to ID
             app.MapPost("/api/{ms}/{table}/{id:int}/actions/{action}", async (
                 string ms,
                 string table,
@@ -253,7 +262,7 @@ namespace Gateway.Endpoints
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
                 return Results.Text(result, "application/json");
-            }).RequireAuthorization();
+            }).RequireAuthorizationIfNotPublic();
 
             return app;
         }

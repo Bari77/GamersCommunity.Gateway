@@ -1,5 +1,6 @@
 ﻿using Gateway.Abstractions;
 using Gateway.Configuration;
+using Gateway.Enums;
 using Microsoft.Extensions.Options;
 
 namespace Gateway.Core
@@ -18,25 +19,66 @@ namespace Gateway.Core
     /// </remarks>
     public sealed class GatewayRouter(IOptions<GatewayRoutingSettings> options) : IGatewayRouter
     {
-        private readonly GatewayRoutingSettings _opts = options.Value;
+        private readonly GatewayRoutingSettings _settings = options.Value;
 
-        /// <inheritdoc />
-        /// <exception cref="KeyNotFoundException">
-        /// Thrown when the specified microservice does not exist in the routing configuration.
-        /// </exception>
-        public string ResolveQueue(string ms)
+        /// <inheritdoc/>
+        public string? ResolveQueue(string microservice) =>
+            _settings.Microservices
+                .FirstOrDefault(x => x.Id.Equals(microservice, StringComparison.OrdinalIgnoreCase))
+                ?.Queue;
+
+        /// <inheritdoc/>
+        public bool IsTableAllowed(string microservice, string table)
         {
-            if (!_opts.QueueByMS.TryGetValue(ms, out var queue))
-                throw new KeyNotFoundException($"Unknown microservice '{ms}'.");
-            return queue;
+            var ms = _settings.Microservices
+                .FirstOrDefault(x => x.Id.Equals(microservice, StringComparison.OrdinalIgnoreCase));
+
+            if (ms is null) return false;
+            return ms.Tables.Any(t => t.Name.Equals(table, StringComparison.OrdinalIgnoreCase));
         }
 
-        /// <inheritdoc />
-        public bool IsTableAllowed(string ms, string table)
-            => _opts.AllowedTablesByMS.TryGetValue(ms, out var set) && set.Contains(table);
+        /// <inheritdoc/>
+        public bool IsActionAllowed(string microservice, string table, string action)
+        {
+            var tbl = GetTable(microservice, table);
+            if (tbl is null) return false;
 
-        /// <inheritdoc />
-        public bool IsActionAllowed(string ms, string table, string action)
-            => _opts.AllowedActionsByResource.TryGetValue($"{ms}/{table}", out var set) && set.Contains(action);
+            // If no actions defined → all are considered allowed
+            if (tbl.Actions.Count == 0) return true;
+
+            return tbl.Actions.Any(a => a.Name.Equals(action, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <inheritdoc/>
+        public bool IsPublic(string microservice, string table, string? action = null)
+        {
+            var ms = GetMicroservice(microservice);
+            if (ms is null) return false; // unknown microservice → always private
+
+            var tbl = GetTable(microservice, table);
+            if (tbl is null) return false; // table not declared → private
+
+            // Look for explicit action override
+            if (!string.IsNullOrEmpty(action))
+            {
+                var act = tbl.Actions.FirstOrDefault(a =>
+                    a.Name.Equals(action, StringComparison.OrdinalIgnoreCase));
+
+                if (act?.Scope != null)
+                    return act.Scope == AccessScope.Public;
+            }
+
+            // Inherit from table → microservice
+            var tableScope = tbl.Scope ?? ms.Scope;
+            return tableScope == AccessScope.Public;
+        }
+
+        private MicroserviceRoute? GetMicroservice(string id) =>
+            _settings.Microservices.FirstOrDefault(
+                x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+
+        private TableRoute? GetTable(string ms, string table) =>
+            GetMicroservice(ms)?.Tables.FirstOrDefault(
+                t => t.Name.Equals(table, StringComparison.OrdinalIgnoreCase));
     }
 }

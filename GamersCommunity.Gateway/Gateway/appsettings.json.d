@@ -27,18 +27,50 @@
     ]
   },
   "GatewayRouting": {
-    "QueueByMS": {
-      "sample": "sample_queue"
-    },
-    "AllowedTablesByMS": {
-      "sample": [
-        "Table"
-      ]
-    },
-    "AllowedActionsByResource": {
-      "sample/Table": [
-        "CustomAction"
-      ]
-    }
+    "Microservices": [
+      {
+        "Id": "mainsite",
+        "Queue": "mainsite_queue",
+        "Scope": "Private",
+        "Tables": [
+          {
+            "Name": "Countries",
+            "Scope": "Public",
+            "Actions": [
+              {
+                "Name": "List",
+                "Scope": "Public"
+              }
+            ]
+          },
+          {
+            "Name": "GameTypes",
+            "Scope": "Private",
+            "Actions": [
+              {
+                "Name": "List",
+                "Scope": "Public"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "Id": "worldofwarcraft",
+        "Queue": "worldofwarcraft_queue",
+        "Scope": "Private",
+        "Tables": [
+          {
+            "Name": "Classes",
+            "Scope": "Public",
+            "Actions": [
+              {
+                "Name": "List"
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

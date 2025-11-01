@@ -1,11 +1,12 @@
-using GamersCommunity.Core.Exceptions;
 using GamersCommunity.Core.Logging;
 using GamersCommunity.Core.Rabbit;
 using Gateway.Configuration;
 using Gateway.Endpoints;
 using Gateway.Middlewares;
+using Gateway.Validators;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 
@@ -23,31 +24,18 @@ namespace APIGateway
             {
                 #region Initialize app settings
 
-                #region Logger
+                #region Options
 
-                var loggerSettingsSection = builder.Configuration.GetSection("LoggerSettings");
-                var loggerSettings = loggerSettingsSection.Get<LoggerSettings>() ?? throw new InternalServerErrorException("Can't parse LoggerSettings section");
-                builder.Services.Configure<LoggerSettings>(loggerSettingsSection.Bind);
+                builder.Services.AddOptions<LoggerSettings>().Bind(builder.Configuration.GetSection("LoggerSettings")).ValidateOnStart();
+                var loggerSettings = builder.Configuration.GetSection("LoggerSettings").Get<LoggerSettings>()!;
 
-                #endregion
+                builder.Services.AddOptions<RabbitMQSettings>().Bind(builder.Configuration.GetSection("RabbitMQ")).ValidateOnStart();
 
-                #region RabbitMQ
+                builder.Services.AddOptions<AppSettings>().Bind(builder.Configuration.GetSection("AppSettings")).ValidateOnStart();
+                var appSettings = builder.Configuration.GetSection("AppSettings").Get<AppSettings>()!;
 
-                builder.Services.Configure<RabbitMQSettings>(builder.Configuration.GetSection("RabbitMQ").Bind);
-
-                #endregion
-
-                #region AppSettings
-
-                var appSettingsSection = builder.Configuration.GetSection("AppSettings");
-                var appSettings = appSettingsSection.Get<AppSettings>() ?? throw new InternalServerErrorException("Can't parse AppSettings section");
-                builder.Services.Configure<AppSettings>(appSettingsSection.Bind);
-
-                #endregion
-
-                #region Gateway routing
-
-                builder.Services.Configure<GatewayRoutingSettings>(builder.Configuration.GetSection("GatewayRouting").Bind);
+                builder.Services.AddOptions<GatewayRoutingSettings>().Bind(builder.Configuration.GetSection("GatewayRouting")).ValidateOnStart();
+                builder.Services.AddSingleton<IValidateOptions<GatewayRoutingSettings>, GatewayRoutingValidator>();
 
                 #endregion
 
