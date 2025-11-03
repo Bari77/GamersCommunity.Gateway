@@ -16,10 +16,8 @@ namespace Gateway.Core
         /// <inheritdoc />
         public async Task<string> CallAsync(string queue, string payload, CancellationToken ct = default)
         {
-            // Send the request message and retrieve message properties (e.g., correlation ID).
             var props = await producer.SendMessageAsync(queue, payload, ct);
 
-            // Wait for and return the correlated response message.
             return await producer.GetResponseAsync(props, ct);
         }
     }

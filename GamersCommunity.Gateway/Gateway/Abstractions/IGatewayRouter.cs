@@ -13,7 +13,7 @@
         /// <returns>
         /// The resolved RabbitMQ queue name associated with the specified microservice.
         /// </returns>
-        string ResolveQueue(string ms);
+        string? ResolveQueue(string ms);
 
         /// <summary>
         /// Determines whether the specified table is authorized for the given microservice.

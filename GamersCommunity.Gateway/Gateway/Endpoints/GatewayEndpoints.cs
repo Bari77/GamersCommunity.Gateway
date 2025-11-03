@@ -249,8 +249,9 @@ namespace Gateway.Endpoints
                 if (!router.IsActionAllowed(ms, table, action)) return Results.BadRequest("Micro service action disallowed");
 
                 var queue = router.ResolveQueue(ms);
-                var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
+                if (queue is null) return Results.BadRequest("Unknown microservice.");
 
+                var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
                 var msg = new RabbitMQTableMessage
                 {
                     Table = table,

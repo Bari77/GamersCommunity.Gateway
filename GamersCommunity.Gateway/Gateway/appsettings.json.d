@@ -14,7 +14,8 @@
   "RabbitMQ": {
     "Hostname": "localhost",
     "Username": "admin",
-    "Password": "admin"
+    "Password": "admin",
+    "Timeout": 10
   },
   "AppSettings": {
     "Keycloak": {
