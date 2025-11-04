@@ -57,6 +57,8 @@ namespace Gateway.Middlewares
 
             var response = new ExceptionResult
             {
+                Code = "ERROR",
+                Message = "An unexpected error occurred.",
                 TraceId = context.TraceIdentifier
             };
 
@@ -67,21 +69,18 @@ namespace Gateway.Middlewares
 
             if (exception is IAppException appException)
             {
-                context.Response.StatusCode = (int)appException.Code;
+                context.Response.StatusCode = (int)appException.StatusCode;
                 response.Message = exception.Message;
+                response.Code = appException.Code;
             }
             else
             {
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                // Optional: provide a generic safe message
-                response.Message = "An unexpected error occurred.";
             }
 
             context.Response.ContentType = "application/json";
-            // Optional: surface the trace id as a response header to ease correlation
             context.Response.Headers["Trace-Id"] = context.TraceIdentifier;
 
-            // Keep serializer simple; align with your global options if you have them
             var json = JsonSerializer.Serialize(response);
             return context.Response.WriteAsync(json);
         }
