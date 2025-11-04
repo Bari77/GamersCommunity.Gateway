@@ -15,9 +15,9 @@ namespace Gateway.Validators
     /// <list type="bullet">
     ///   <item><description>Duplicate microservice identifiers.</description></item>
     ///   <item><description>Missing or empty queue names.</description></item>
-    ///   <item><description>Duplicate table names per microservice.</description></item>
-    ///   <item><description>Duplicate action names per table.</description></item>
-    ///   <item><description>Empty identifiers at any level (microservice, table, action).</description></item>
+    ///   <item><description>Duplicate resource names per microservice.</description></item>
+    ///   <item><description>Duplicate action names per resource.</description></item>
+    ///   <item><description>Empty identifiers at any level (microservice, resource, action).</description></item>
     /// </list>
     /// If any inconsistency is found, an <see cref="OptionsValidationException"/> is thrown during startup.
     /// </remarks>
@@ -49,25 +49,25 @@ namespace Gateway.Validators
                 if (string.IsNullOrWhiteSpace(ms.Queue))
                     errors.Add($"Microservice '{ms.Id}' has no defined queue.");
 
-                var tableNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var resourceNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                foreach (var tbl in ms.Tables)
+                foreach (var res in ms.Resources)
                 {
-                    if (string.IsNullOrWhiteSpace(tbl.Name))
-                        errors.Add($"Microservice '{ms.Id}' contains a table with an empty name.");
+                    if (string.IsNullOrWhiteSpace(res.Name))
+                        errors.Add($"Microservice '{ms.Id}' contains a resource with an empty name.");
 
-                    if (!tableNames.Add(tbl.Name))
-                        errors.Add($"Duplicate table '{tbl.Name}' found in microservice '{ms.Id}'.");
+                    if (!resourceNames.Add(res.Name))
+                        errors.Add($"Duplicate resource '{res.Name}' found in microservice '{ms.Id}'.");
 
                     var actionNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                    foreach (var act in tbl.Actions)
+                    foreach (var act in res.Actions)
                     {
                         if (string.IsNullOrWhiteSpace(act.Name))
-                            errors.Add($"Table '{tbl.Name}' in microservice '{ms.Id}' contains an unnamed action.");
+                            errors.Add($"Resource '{res.Name}' in microservice '{ms.Id}' contains an unnamed action.");
 
                         if (!actionNames.Add(act.Name))
-                            errors.Add($"Duplicate action '{act.Name}' found in table '{tbl.Name}' (microservice '{ms.Id}').");
+                            errors.Add($"Duplicate action '{act.Name}' found in resource '{res.Name}' (microservice '{ms.Id}').");
                     }
                 }
             }

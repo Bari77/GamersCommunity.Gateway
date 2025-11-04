@@ -71,24 +71,25 @@ namespace Gateway.Endpoints
         /// </summary>
         public static IEndpointRouteBuilder MapGatewayEndpoints(this IEndpointRouteBuilder app)
         {
-            // POST /api/{ms}/{table} -> Create
-            app.MapPost("/api/{ms}/{table}", async (
+            // POST /api/{ms}/{resource} -> Create
+            app.MapPost("/api/{ms}/{resource}", async (
                 string ms,
-                string table,
+                string resource,
                 HttpRequest req,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
+                if (!router.IsResourceAllowed(ms, resource)) return Results.Unauthorized();
 
                 var queue = router.ResolveQueue(ms);
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
-                var msg = new RabbitMQTableMessage
+                var msg = new BusMessage
                 {
-                    Table = table,
+                    Type = router.ResolveType(ms, resource),
+                    Resource = resource,
                     Action = "Create",
                     Data = jsonBody
                 };
@@ -96,25 +97,26 @@ namespace Gateway.Endpoints
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var id = await rpc.CallAsync(queue, payload, ct);
 
-                return Results.Created($"/api/{ms}/{table}/{id}", id);
+                return Results.Created($"/api/{ms}/{resource}/{id}", id);
             }).RequireAuthorizationIfNotPublic("Create");
 
-            // GET /api/{ms}/{table} -> List
-            app.MapGet("/api/{ms}/{table}", async (
+            // GET /api/{ms}/{resource} -> List
+            app.MapGet("/api/{ms}/{resource}", async (
                 string ms,
-                string table,
+                string resource,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
+                if (!router.IsResourceAllowed(ms, resource)) return Results.Unauthorized();
 
                 var queue = router.ResolveQueue(ms);
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
-                var msg = new RabbitMQTableMessage
+                var msg = new BusMessage
                 {
-                    Table = table,
+                    Type = router.ResolveType(ms, resource),
+                    Resource = resource,
                     Action = "List"
                 };
 
@@ -123,23 +125,24 @@ namespace Gateway.Endpoints
                 return Results.Text(result, "application/json");
             }).RequireAuthorizationIfNotPublic("List");
 
-            // GET /api/{ms}/{table}/{id:int} -> Get by ID
-            app.MapGet("/api/{ms}/{table}/{id:int}", async (
+            // GET /api/{ms}/{resource}/{id:int} -> Get by ID
+            app.MapGet("/api/{ms}/{resource}/{id:int}", async (
                 string ms,
-                string table,
+                string resource,
                 int id,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
+                if (!router.IsResourceAllowed(ms, resource)) return Results.Unauthorized();
 
                 var queue = router.ResolveQueue(ms);
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
-                var msg = new RabbitMQTableMessage
+                var msg = new BusMessage
                 {
-                    Table = table,
+                    Type = router.ResolveType(ms, resource),
+                    Resource = resource,
                     Action = "Get",
                     Data = id.ToString()
                 };
@@ -149,25 +152,26 @@ namespace Gateway.Endpoints
                 return Results.Text(result, "application/json");
             }).RequireAuthorizationIfNotPublic("Get");
 
-            // PUT /api/{ms}/{table}/{id:int} -> Update
-            app.MapPut("/api/{ms}/{table}/{id:int}", async (
+            // PUT /api/{ms}/{resource}/{id:int} -> Update
+            app.MapPut("/api/{ms}/{resource}/{id:int}", async (
                 string ms,
-                string table,
+                string resource,
                 int id,
                 HttpRequest req,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
+                if (!router.IsResourceAllowed(ms, resource)) return Results.Unauthorized();
 
                 var queue = router.ResolveQueue(ms);
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
-                var msg = new RabbitMQTableMessage
+                var msg = new BusMessage
                 {
-                    Table = table,
+                    Type = router.ResolveType(ms, resource),
+                    Resource = resource,
                     Action = "Update",
                     Id = id,
                     Data = jsonBody
@@ -178,23 +182,24 @@ namespace Gateway.Endpoints
                 return Results.NoContent();
             }).RequireAuthorizationIfNotPublic("Update");
 
-            // DELETE /api/{ms}/{table}/{id:int} -> Delete
-            app.MapDelete("/api/{ms}/{table}/{id:int}", async (
+            // DELETE /api/{ms}/{resource}/{id:int} -> Delete
+            app.MapDelete("/api/{ms}/{resource}/{id:int}", async (
                 string ms,
-                string table,
+                string resource,
                 int id,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
+                if (!router.IsResourceAllowed(ms, resource)) return Results.Unauthorized();
 
                 var queue = router.ResolveQueue(ms);
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
-                var msg = new RabbitMQTableMessage
+                var msg = new BusMessage
                 {
-                    Table = table,
+                    Type = router.ResolveType(ms, resource),
+                    Resource = resource,
                     Action = "Delete",
                     Data = id.ToString()
                 };
@@ -204,26 +209,27 @@ namespace Gateway.Endpoints
                 return Results.NoContent();
             }).RequireAuthorizationIfNotPublic("Delete");
 
-            // POST /api/{ms}/{table}/actions/{action} -> Post custom action
-            app.MapPost("/api/{ms}/{table}/actions/{action}", async (
+            // POST /api/{ms}/{resource}/actions/{action} -> Post custom action
+            app.MapPost("/api/{ms}/{resource}/actions/{action}", async (
                 string ms,
-                string table,
+                string resource,
                 string action,
                 HttpRequest req,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
-                if (!router.IsActionAllowed(ms, table, action)) return Results.BadRequest("Micro service action disallowed");
+                if (!router.IsResourceAllowed(ms, resource)) return Results.Unauthorized();
+                if (!router.IsActionAllowed(ms, resource, action)) return Results.Unauthorized();
 
                 var queue = router.ResolveQueue(ms);
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
-                var msg = new RabbitMQTableMessage
+                var msg = new BusMessage
                 {
-                    Table = table,
+                    Type = router.ResolveType(ms, resource),
+                    Resource = resource,
                     Action = action,
                     Data = jsonBody,
                     Id = null
@@ -234,10 +240,10 @@ namespace Gateway.Endpoints
                 return Results.Text(result, "application/json");
             }).RequireAuthorizationIfNotPublic();
 
-            // POST /api/{ms}/{table}/{id:int}/actions/{action} -> Post custom action to ID
-            app.MapPost("/api/{ms}/{table}/{id:int}/actions/{action}", async (
+            // POST /api/{ms}/{resource}/{id:int}/actions/{action} -> Post custom action to ID
+            app.MapPost("/api/{ms}/{resource}/{id:int}/actions/{action}", async (
                 string ms,
-                string table,
+                string resource,
                 int id,
                 string action,
                 HttpRequest req,
@@ -245,16 +251,17 @@ namespace Gateway.Endpoints
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
             {
-                if (!router.IsTableAllowed(ms, table)) return Results.BadRequest("Micro service access disallowed");
-                if (!router.IsActionAllowed(ms, table, action)) return Results.BadRequest("Micro service action disallowed");
+                if (!router.IsResourceAllowed(ms, resource)) return Results.Unauthorized();
+                if (!router.IsActionAllowed(ms, resource, action)) return Results.Unauthorized();
 
                 var queue = router.ResolveQueue(ms);
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
-                var msg = new RabbitMQTableMessage
+                var msg = new BusMessage
                 {
-                    Table = table,
+                    Type = router.ResolveType(ms, resource),
+                    Resource = resource,
                     Action = action,
                     Id = id,
                     Data = jsonBody

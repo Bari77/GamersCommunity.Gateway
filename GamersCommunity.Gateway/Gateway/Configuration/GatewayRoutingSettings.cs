@@ -1,18 +1,19 @@
-﻿using Gateway.Enums;
+﻿using GamersCommunity.Core.Enums;
+using Gateway.Enums;
 
 namespace Gateway.Configuration
 {
     /// <summary>
     /// Represents the hierarchical routing configuration for the Gateway, 
-    /// defining microservices, their tables (resources), actions, and associated access scopes.
+    /// defining microservices, their resources, actions, and associated access scopes.
     /// </summary>
     /// <remarks>
     /// This configuration enables fine-grained access control by allowing the specification of 
     /// <see cref="AccessScope"/> (public or private) at multiple levels:
     /// <list type="bullet">
     ///   <item><description><b>Microservice</b> → Global default scope for all its resources.</description></item>
-    ///   <item><description><b>Table</b> → Resource-level scope overriding the microservice default.</description></item>
-    ///   <item><description><b>Action</b> → Per-operation scope overriding the table scope.</description></item>
+    ///   <item><description><b>Resource</b> → Resource-level scope overriding the microservice default.</description></item>
+    ///   <item><description><b>Action</b> → Per-operation scope overriding the resource scope.</description></item>
     /// </list>
     /// Scopes are inherited when unspecified, allowing concise yet expressive configurations.
     /// </remarks>
@@ -33,7 +34,7 @@ namespace Gateway.Configuration
     /// <remarks>
     /// Defines the link between a microservice identifier (used in the URL path) 
     /// and its corresponding message queue name in RabbitMQ.  
-    /// Contains nested table definitions that describe which resources are exposed.
+    /// Contains nested resource definitions that describe which resources are exposed.
     /// </remarks>
     public sealed class MicroserviceRoute
     {
@@ -41,7 +42,7 @@ namespace Gateway.Configuration
         /// Unique identifier of the microservice.
         /// </summary>
         /// <remarks>
-        /// This identifier corresponds to the <c>{ms}</c> segment of API routes (e.g. <c>/api/{ms}/{table}</c>).
+        /// This identifier corresponds to the <c>{ms}</c> segment of API routes (e.g. <c>/api/{ms}/{resource}</c>).
         /// </remarks>
         public required string Id { get; init; }
 
@@ -54,42 +55,47 @@ namespace Gateway.Configuration
         public required string Queue { get; init; }
 
         /// <summary>
-        /// List of table (resource) definitions exposed by this microservice.
+        /// List of resource definitions exposed by this microservice.
         /// </summary>
         /// <remarks>
-        /// Each table defines its own scope and set of allowed actions.
+        /// Each resource defines its own scope and set of allowed actions.
         /// </remarks>
-        public List<TableRoute> Tables { get; init; } = [];
+        public List<ResourceRoute> Resources { get; init; } = [];
 
         /// <summary>
         /// Default access scope for this microservice.
         /// </summary>
         /// <remarks>
-        /// When a table or action does not explicitly define a scope, 
+        /// When a resource or action does not explicitly define a scope, 
         /// it inherits the one from its parent microservice.
         /// </remarks>
         public AccessScope Scope { get; init; } = AccessScope.Private;
     }
 
     /// <summary>
-    /// Represents a table (or resource) exposed by a given microservice.
+    /// Represents a resource exposed by a given microservice.
     /// </summary>
     /// <remarks>
-    /// Defines whether the table is publicly accessible or requires authentication, 
+    /// Defines whether the resource is publicly accessible or requires authentication, 
     /// and optionally specifies custom scopes for each individual action.
     /// </remarks>
-    public sealed class TableRoute
+    public sealed class ResourceRoute
     {
         /// <summary>
-        /// Name of the table or resource.
+        /// Name of the resource.
         /// </summary>
         /// <remarks>
-        /// This corresponds to the <c>{table}</c> segment in the API route (<c>/api/{ms}/{table}</c>).
+        /// This corresponds to the <c>{resource}</c> segment in the API route (<c>/api/{ms}/{resource}</c>).
         /// </remarks>
         public required string Name { get; init; }
 
         /// <summary>
-        /// Access scope explicitly assigned to this table.
+        /// Type of the resource.
+        /// </summary>
+        public required BusServiceTypeEnum Type { get; init; }
+
+        /// <summary>
+        /// Access scope explicitly assigned to this resource.
         /// </summary>
         /// <remarks>
         /// When set to <see langword="null"/>, the scope inherits from the parent microservice.
@@ -97,7 +103,7 @@ namespace Gateway.Configuration
         public AccessScope? Scope { get; init; }
 
         /// <summary>
-        /// List of action definitions associated with this table.
+        /// List of action definitions associated with this resource.
         /// </summary>
         /// <remarks>
         /// Each action represents a specific operation (e.g., <c>List</c>, <c>Create</c>, <c>Delete</c>) 
@@ -107,10 +113,10 @@ namespace Gateway.Configuration
     }
 
     /// <summary>
-    /// Represents a single operation (action) on a table, such as Create, List, Update, or Delete.
+    /// Represents a single operation (action) on a resource, such as Create, List, Update, or Delete.
     /// </summary>
     /// <remarks>
-    /// Each action can override the access scope of its parent table, allowing per-operation control.
+    /// Each action can override the access scope of its parent resource, allowing per-operation control.
     /// </remarks>
     public sealed class ActionRoute
     {
@@ -126,7 +132,7 @@ namespace Gateway.Configuration
         /// Optional access scope specific to this action.
         /// </summary>
         /// <remarks>
-        /// When <see langword="null"/>, the scope inherits from the parent table or microservice.
+        /// When <see langword="null"/>, the scope inherits from the parent resource or microservice.
         /// </remarks>
         public AccessScope? Scope { get; init; }
     }

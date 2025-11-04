@@ -1,4 +1,6 @@
-﻿namespace Gateway.Abstractions
+﻿using GamersCommunity.Core.Enums;
+
+namespace Gateway.Abstractions
 {
     /// <summary>
     /// Defines the contract for resolving routing and authorization rules 
@@ -16,34 +18,44 @@
         string? ResolveQueue(string ms);
 
         /// <summary>
-        /// Determines whether the specified table is authorized for the given microservice.
+        /// Resolves the service type from the provided microservice identifier and resource name.
         /// </summary>
         /// <param name="ms">The identifier of the microservice.</param>
-        /// <param name="table">The name of the table to validate.</param>
+        /// <param name="resource">The resources</param>
         /// <returns>
-        /// <c>true</c> if the table is authorized for the specified microservice otherwise, <c>false</c>.
+        /// The resolved service type associated with the specified microservice and resource
         /// </returns>
-        bool IsTableAllowed(string ms, string table);
+        BusServiceTypeEnum ResolveType(string ms, string resource);
 
         /// <summary>
-        /// Determines whether the specified action is authorized on the given table 
+        /// Determines whether the specified resource is authorized for the given microservice.
+        /// </summary>
+        /// <param name="ms">The identifier of the microservice.</param>
+        /// <param name="resource">The name of the resource to validate.</param>
+        /// <returns>
+        /// <c>true</c> if the resource is authorized for the specified microservice otherwise, <c>false</c>.
+        /// </returns>
+        bool IsResourceAllowed(string ms, string resource);
+
+        /// <summary>
+        /// Determines whether the specified action is authorized on the given resource 
         /// for the specified microservice.
         /// </summary>
         /// <param name="ms">The identifier of the microservice.</param>
-        /// <param name="table">The name of the table on which the action is attempted.</param>
+        /// <param name="resource">The name of the resource on which the action is attempted.</param>
         /// <param name="action">The action to validate (e.g., read, write, delete).</param>
         /// <returns>
-        /// <c>true</c> if the action is authorized on the table for the specified microservice otherwise, <c>false</c>.
+        /// <c>true</c> if the action is authorized on the resource for the specified microservice otherwise, <c>false</c>.
         /// </returns>
-        bool IsActionAllowed(string ms, string table, string action);
+        bool IsActionAllowed(string ms, string resource, string action);
 
         /// <summary>
         /// Determines whether a specific resource (optionally action) is public or private.
         /// </summary>
         /// <param name="microservice">Microservice identifier (<c>ms</c>).</param>
-        /// <param name="table">Table or resource name.</param>
+        /// <param name="resource">Resource or resource name.</param>
         /// <param name="action">Optional action name (e.g., <c>List</c>, <c>Create</c>).</param>
         /// <returns><see langword="true"/> if the resource is public; otherwise <see langword="false"/>.</returns>
-        bool IsPublic(string microservice, string table, string? action = null);
+        bool IsPublic(string microservice, string resource, string? action = null);
     }
 }

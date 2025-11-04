@@ -33,8 +33,9 @@
         "Id": "mainsite",
         "Queue": "mainsite_queue",
         "Scope": "Private",
-        "Tables": [
+        "Resources": [
           {
+            "Type": "Table",
             "Name": "Countries",
             "Scope": "Public",
             "Actions": [
@@ -45,6 +46,7 @@
             ]
           },
           {
+            "Type": "Table",
             "Name": "GameTypes",
             "Scope": "Private",
             "Actions": [
@@ -60,8 +62,9 @@
         "Id": "worldofwarcraft",
         "Queue": "worldofwarcraft_queue",
         "Scope": "Private",
-        "Tables": [
+        "Resources": [
           {
+            "Type": "Table",
             "Name": "Classes",
             "Scope": "Public",
             "Actions": [
