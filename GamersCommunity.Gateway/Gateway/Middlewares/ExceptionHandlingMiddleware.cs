@@ -48,10 +48,8 @@ namespace Gateway.Middlewares
         {
             Log.Error(exception, "Trace ID: {TraceId} - An unhandled exception occurred.", context.TraceIdentifier);
 
-            // If the response has already started, we cannot write our JSON body safely.
             if (context.Response.HasStarted)
             {
-                // Best effort: just log and bail out.
                 return Task.CompletedTask;
             }
 
@@ -67,7 +65,7 @@ namespace Gateway.Middlewares
                 response.Exception = exception.StackTrace;
             }
 
-            if (exception is IAppException appException)
+            if (exception is AppException appException)
             {
                 context.Response.StatusCode = (int)appException.StatusCode;
                 response.Message = exception.Message;
@@ -85,5 +83,4 @@ namespace Gateway.Middlewares
             return context.Response.WriteAsync(json);
         }
     }
-
 }
