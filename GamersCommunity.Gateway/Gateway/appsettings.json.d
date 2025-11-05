@@ -35,7 +35,7 @@
         "Scope": "Private",
         "Resources": [
           {
-            "Type": "Table",
+            "Type": "DATA",
             "Name": "Countries",
             "Scope": "Public",
             "Actions": [
@@ -46,7 +46,7 @@
             ]
           },
           {
-            "Type": "Table",
+            "Type": "DATA",
             "Name": "GameTypes",
             "Scope": "Private",
             "Actions": [
@@ -64,7 +64,7 @@
         "Scope": "Private",
         "Resources": [
           {
-            "Type": "Table",
+            "Type": "DATA",
             "Name": "Classes",
             "Scope": "Public",
             "Actions": [
