@@ -24,6 +24,9 @@ namespace Gateway.Core
         private readonly GatewayRoutingSettings _settings = options.Value;
 
         /// <inheritdoc/>
+        public IReadOnlyCollection<string> GetRegisteredMicroservices() => _settings.Microservices.Select(m => m.Id).ToList().AsReadOnly();
+
+        /// <inheritdoc/>
         public string? ResolveQueue(string microservice) => GetMicroservice(microservice)!.Queue;
 
         /// <inheritdoc/>

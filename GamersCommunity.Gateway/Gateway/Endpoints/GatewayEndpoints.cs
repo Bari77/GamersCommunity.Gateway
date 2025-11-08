@@ -4,6 +4,8 @@ using Gateway.Core;
 using Gateway.Extensions;
 using Gateway.Security;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -71,6 +73,36 @@ namespace Gateway.Endpoints
         /// </summary>
         public static IEndpointRouteBuilder MapGatewayEndpoints(this IEndpointRouteBuilder app)
         {
+            app.MapHealthChecks("/api/health", new HealthCheckOptions
+            {
+                Predicate = _ => true,
+
+                ResultStatusCodes =
+                {
+                    [HealthStatus.Healthy]  = StatusCodes.Status200OK,
+                    [HealthStatus.Degraded] = StatusCodes.Status200OK,
+                    [HealthStatus.Unhealthy]= StatusCodes.Status503ServiceUnavailable,
+                },
+
+                ResponseWriter = async (ctx, report) =>
+                {
+                    ctx.Response.ContentType = "application/json";
+
+                    var body = new
+                    {
+                        Status = report.Status.ToString(),
+                        Checks = report.Entries.Select(e => new
+                        {
+                            Name = e.Key,
+                            Status = e.Value.Status.ToString(),
+                            Data = e.Value.Data
+                        })
+                    };
+
+                    await ctx.Response.WriteAsync(JsonSerializer.Serialize(body));
+                }
+            });
+
             // POST /api/{ms}/{resource} -> Create
             app.MapPost("/api/{ms}/{resource}", async (
                 string ms,

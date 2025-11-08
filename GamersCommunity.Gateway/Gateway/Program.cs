@@ -2,6 +2,7 @@ using GamersCommunity.Core.Logging;
 using GamersCommunity.Core.Rabbit;
 using Gateway.Configuration;
 using Gateway.Endpoints;
+using Gateway.Health;
 using Gateway.Middlewares;
 using Gateway.Validators;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -102,6 +103,7 @@ namespace APIGateway
 
                 builder.Services.AddAuthorization();
 
+                builder.Services.AddHealthChecks().AddCheck<MicroservicesHealthCheck>("microservices");
                 builder.Services.AddGatewayServices();
 
                 builder.Services.AddCors(options =>

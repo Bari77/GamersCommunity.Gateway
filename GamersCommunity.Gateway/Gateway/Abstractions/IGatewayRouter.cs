@@ -9,6 +9,12 @@ namespace Gateway.Abstractions
     public interface IGatewayRouter
     {
         /// <summary>
+        /// Get registred microservices
+        /// </summary>
+        /// <returns>List of registred microservices</returns>
+        IReadOnlyCollection<string> GetRegisteredMicroservices();
+
+        /// <summary>
         /// Resolves the RabbitMQ queue name from the provided microservice identifier.
         /// </summary>
         /// <param name="ms">The identifier of the microservice.</param>
