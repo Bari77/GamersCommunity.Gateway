@@ -7,16 +7,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Remove="appsettings.json" />
+    <Content Remove="appsettings.Development.json" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="appsettings.json" />
+    <None Include="appsettings.Development.json" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="GamersCommunity.Core" Version="9.1.1" />
-    <PackageReference Include="GamersCommunity.Core.Logging" Version="0.0.2" />
+    <PackageReference Include="GamersCommunity.Core" Version="9.2.0" />
+    <PackageReference Include="GamersCommunity.Core.Logging" Version="1.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
   </ItemGroup>
