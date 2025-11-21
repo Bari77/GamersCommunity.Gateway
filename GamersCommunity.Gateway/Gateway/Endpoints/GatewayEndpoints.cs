@@ -59,11 +59,11 @@ namespace Gateway.Endpoints
             services.AddSingleton<Serilog.ILogger>(sp => Log.Logger);
 
             // Messaging services
-            services.AddScoped<RabbitMQProducer>();
-            services.AddScoped<IRabbitRpcClient, RabbitRpcClient>();
+            services.AddSingleton<RabbitMQProducer>();
+            services.AddSingleton<IRabbitRpcClient, RabbitRpcClient>();
 
             // Gateway router service
-            services.AddScoped<IGatewayRouter, GatewayRouter>();
+            services.AddSingleton<IGatewayRouter, GatewayRouter>();
             return services;
         }
 
