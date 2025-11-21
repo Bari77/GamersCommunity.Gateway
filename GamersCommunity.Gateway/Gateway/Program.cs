@@ -28,7 +28,7 @@ namespace APIGateway
                 #region Options
 
                 builder.Services.AddOptions<LoggerSettings>().Bind(builder.Configuration.GetSection("LoggerSettings")).ValidateOnStart();
-                var loggerSettings = builder.Configuration.GetSection("LoggerSettings").Get<LoggerSettings>()!;
+                var loggerSettings = builder.Configuration.GetSection("LoggerSettings").Get<LoggerSettings>() ?? new LoggerSettings();
 
                 builder.Services.AddOptions<RabbitMQSettings>().Bind(builder.Configuration.GetSection("RabbitMQ")).ValidateOnStart();
 
