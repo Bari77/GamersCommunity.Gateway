@@ -5,6 +5,7 @@ using Gateway.Abstractions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Collections.Concurrent;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Gateway.Health
 {
@@ -36,7 +37,14 @@ namespace Gateway.Health
         /// </summary>
         private static readonly JsonSerializerOptions JsonOpts = new()
         {
-            PropertyNameCaseInsensitive = true
+            PropertyNameCaseInsensitive = true,
+            Converters = { new JsonStringEnumConverter() },
+        };
+
+        private static object ToHealthData(MicroserviceHealth health) => new
+        {
+            Status = health.Status.ToString(),
+            Db = health.Db?.ToString(),
         };
 
         /// <inheritdoc/>
@@ -81,7 +89,7 @@ namespace Gateway.Health
                     msHealth.Status = HealthStatus.Unhealthy;
                 }
 
-                data[msId] = msHealth;
+                data[msId] = ToHealthData(msHealth);
 
                 if (msHealth.Status == HealthStatus.Unhealthy)
                     Interlocked.Exchange(ref overall, HealthStatus.Unhealthy);

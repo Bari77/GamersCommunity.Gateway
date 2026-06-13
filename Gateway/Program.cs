@@ -114,7 +114,10 @@ namespace APIGateway
                         .AllowAnyMethod());
                 });
 
-                builder.WebHost.UseUrls("http://0.0.0.0:8080", "https://0.0.0.0:8081");
+                if (builder.Environment.IsEnvironment("Docker"))
+                {
+                    builder.WebHost.UseUrls("http://0.0.0.0:8080", "https://0.0.0.0:8081");
+                }
 
                 var app = builder.Build();
 
