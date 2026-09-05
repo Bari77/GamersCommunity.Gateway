@@ -137,7 +137,28 @@ namespace Gateway.Endpoints
                 var queue = router.ResolveQueue(ms);
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
-                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Get", id.ToString());
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Get", id: id);
+
+                var payload = JsonSerializer.Serialize(msg, JsonOpts);
+                var result = await rpc.CallAsync(queue, payload, ct);
+                return Results.Text(result, "application/json");
+            }).RequireAuthorizationIfNotPublic("Get");
+
+            app.MapGet("/api/{ms}/{resource}/{publicId:guid}", async (
+                string ms,
+                string resource,
+                Guid publicId,
+                HttpContext http,
+                IGatewayRouter router,
+                IRabbitRpcClient rpc,
+                CancellationToken ct) =>
+            {
+                if (!router.IsResourceAllowed(ms, resource)) return Results.Unauthorized();
+
+                var queue = router.ResolveQueue(ms);
+                if (queue is null) return Results.BadRequest("Unknown microservice.");
+
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Get", publicId: publicId);
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
@@ -160,7 +181,30 @@ namespace Gateway.Endpoints
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
-                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Update", jsonBody, id);
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Update", jsonBody, id: id);
+
+                var payload = JsonSerializer.Serialize(msg, JsonOpts);
+                await rpc.CallAsync(queue, payload, ct);
+                return Results.NoContent();
+            }).RequireAuthorizationIfNotPublic("Update");
+
+            app.MapPut("/api/{ms}/{resource}/{publicId:guid}", async (
+                string ms,
+                string resource,
+                Guid publicId,
+                HttpRequest req,
+                HttpContext http,
+                IGatewayRouter router,
+                IRabbitRpcClient rpc,
+                CancellationToken ct) =>
+            {
+                if (!router.IsResourceAllowed(ms, resource)) return Results.Unauthorized();
+
+                var queue = router.ResolveQueue(ms);
+                if (queue is null) return Results.BadRequest("Unknown microservice.");
+
+                var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Update", jsonBody, publicId: publicId);
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 await rpc.CallAsync(queue, payload, ct);
@@ -181,7 +225,28 @@ namespace Gateway.Endpoints
                 var queue = router.ResolveQueue(ms);
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
-                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Delete", id.ToString());
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Delete", id: id);
+
+                var payload = JsonSerializer.Serialize(msg, JsonOpts);
+                await rpc.CallAsync(queue, payload, ct);
+                return Results.NoContent();
+            }).RequireAuthorizationIfNotPublic("Delete");
+
+            app.MapDelete("/api/{ms}/{resource}/{publicId:guid}", async (
+                string ms,
+                string resource,
+                Guid publicId,
+                HttpContext http,
+                IGatewayRouter router,
+                IRabbitRpcClient rpc,
+                CancellationToken ct) =>
+            {
+                if (!router.IsResourceAllowed(ms, resource)) return Results.Unauthorized();
+
+                var queue = router.ResolveQueue(ms);
+                if (queue is null) return Results.BadRequest("Unknown microservice.");
+
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Delete", publicId: publicId);
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 await rpc.CallAsync(queue, payload, ct);
@@ -230,7 +295,32 @@ namespace Gateway.Endpoints
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
-                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, action, jsonBody, id);
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, action, jsonBody, id: id);
+
+                var payload = JsonSerializer.Serialize(msg, JsonOpts);
+                var result = await rpc.CallAsync(queue, payload, ct);
+                return Results.Text(result, "application/json");
+            }).RequireAuthorizationIfNotPublic();
+
+            app.MapPost("/api/{ms}/{resource}/{publicId:guid}/actions/{action}", async (
+                string ms,
+                string resource,
+                Guid publicId,
+                string action,
+                HttpRequest req,
+                HttpContext http,
+                IGatewayRouter router,
+                IRabbitRpcClient rpc,
+                CancellationToken ct) =>
+            {
+                if (!router.IsResourceAllowed(ms, resource)) return Results.Unauthorized();
+                if (!router.IsActionAllowed(ms, resource, action)) return Results.Unauthorized();
+
+                var queue = router.ResolveQueue(ms);
+                if (queue is null) return Results.BadRequest("Unknown microservice.");
+
+                var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, action, jsonBody, publicId: publicId);
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
@@ -246,7 +336,8 @@ namespace Gateway.Endpoints
             string resource,
             string action,
             string? data = null,
-            int? id = null) =>
+            int? id = null,
+            Guid? publicId = null) =>
             new()
             {
                 Type = type,
@@ -254,6 +345,7 @@ namespace Gateway.Endpoints
                 Action = action,
                 Data = data,
                 Id = id,
+                PublicId = publicId,
                 Caller = CreateCaller(user)
             };
 
