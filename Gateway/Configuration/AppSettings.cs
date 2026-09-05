@@ -5,10 +5,7 @@
     /// </summary>
     public sealed class AppSettings
     {
-        /// <summary>
-        /// Keycloak settings
-        /// </summary>
-        public required KeycloakSettings Keycloak { get; set; }
+        public required OidcSettings Oidc { get; set; }
 
         /// <summary>
         /// Allowed origins
@@ -16,24 +13,12 @@
         public string[] AllowedOrigins { get; set; } = [];
     }
 
-    /// <summary>
-    /// Keycloak settings representation class
-    /// </summary>
-    public sealed class KeycloakSettings
+    public sealed class OidcSettings
     {
-        /// <summary>
-        /// Keycloak authority
-        /// </summary>
         public required string Authority { get; set; }
 
-        /// <summary>
-        /// Keycloak audience
-        /// </summary>
         public required string Audience { get; set; }
 
-        /// <summary>
-        /// Require HTTPS metadata
-        /// </summary>
         public bool RequireHttpsMetadata { get; set; }
     }
 }

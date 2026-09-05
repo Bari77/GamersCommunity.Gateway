@@ -1,4 +1,5 @@
-﻿using GamersCommunity.Core.Rabbit;
+﻿using GamersCommunity.Core.Enums;
+using GamersCommunity.Core.Rabbit;
 using Gateway.Abstractions;
 using Gateway.Core;
 using Gateway.Extensions;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -31,44 +33,19 @@ namespace Gateway.Endpoints
         /// <summary>
         /// Registers all required gateway services into the dependency injection container.
         /// </summary>
-        /// <param name="services">
-        /// The service collection to which the gateway services will be added.
-        /// </param>
-        /// <returns>
-        /// The updated <see cref="IServiceCollection"/> with all gateway services registered.
-        /// </returns>
-        /// <remarks>
-        /// This method configures the following:
-        /// <list type="bullet">
-        /// <item><description>Options support for dependency injection.</description></item>
-        /// <item><description>Keycloak claims transformation for authentication.</description></item>
-        /// <item><description>Serilog logger as a singleton instance.</description></item>
-        /// <item><description>RabbitMQ producer and RPC client for messaging.</description></item>
-        /// <item><description>Gateway router for queue and authorization resolution.</description></item>
-        /// </list>
-        /// </remarks>
         public static IServiceCollection AddGatewayServices(this IServiceCollection services)
         {
-            // Options + services
             services.AddOptions();
-
-            // Authentication claims transformation (Keycloak)
-            services.AddScoped<IClaimsTransformation, KeycloakClaimsTransformation>();
-
-            // Serilog logger instance
+            services.AddScoped<IClaimsTransformation, OidcClaimsTransformation>();
             services.AddSingleton<Serilog.ILogger>(sp => Log.Logger);
-
-            // Messaging services
             services.AddSingleton<RabbitMQProducer>();
             services.AddSingleton<IRabbitRpcClient, RabbitRpcClient>();
-
-            // Gateway router service
             services.AddSingleton<IGatewayRouter, GatewayRouter>();
             return services;
         }
 
         /// <summary>
-        /// Mappe les endpoints génériques de la gateway.
+        /// Maps the generic gateway endpoints.
         /// <param name="app">The app</param>
         /// </summary>
         public static IEndpointRouteBuilder MapGatewayEndpoints(this IEndpointRouteBuilder app)
@@ -103,11 +80,11 @@ namespace Gateway.Endpoints
                 }
             });
 
-            // POST /api/{ms}/{resource} -> Create
             app.MapPost("/api/{ms}/{resource}", async (
                 string ms,
                 string resource,
                 HttpRequest req,
+                HttpContext http,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
@@ -118,13 +95,7 @@ namespace Gateway.Endpoints
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
-                var msg = new BusMessage
-                {
-                    Type = router.ResolveType(ms, resource),
-                    Resource = resource,
-                    Action = "Create",
-                    Data = jsonBody
-                };
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Create", jsonBody);
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var id = await rpc.CallAsync(queue, payload, ct);
@@ -132,10 +103,10 @@ namespace Gateway.Endpoints
                 return Results.Created($"/api/{ms}/{resource}/{id}", id);
             }).RequireAuthorizationIfNotPublic("Create");
 
-            // GET /api/{ms}/{resource} -> List
             app.MapGet("/api/{ms}/{resource}", async (
                 string ms,
                 string resource,
+                HttpContext http,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
@@ -145,23 +116,18 @@ namespace Gateway.Endpoints
                 var queue = router.ResolveQueue(ms);
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
-                var msg = new BusMessage
-                {
-                    Type = router.ResolveType(ms, resource),
-                    Resource = resource,
-                    Action = "List"
-                };
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "List");
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
                 return Results.Text(result, "application/json");
             }).RequireAuthorizationIfNotPublic("List");
 
-            // GET /api/{ms}/{resource}/{id:int} -> Get by ID
             app.MapGet("/api/{ms}/{resource}/{id:int}", async (
                 string ms,
                 string resource,
                 int id,
+                HttpContext http,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
@@ -171,25 +137,19 @@ namespace Gateway.Endpoints
                 var queue = router.ResolveQueue(ms);
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
-                var msg = new BusMessage
-                {
-                    Type = router.ResolveType(ms, resource),
-                    Resource = resource,
-                    Action = "Get",
-                    Data = id.ToString()
-                };
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Get", id.ToString());
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
                 return Results.Text(result, "application/json");
             }).RequireAuthorizationIfNotPublic("Get");
 
-            // PUT /api/{ms}/{resource}/{id:int} -> Update
             app.MapPut("/api/{ms}/{resource}/{id:int}", async (
                 string ms,
                 string resource,
                 int id,
                 HttpRequest req,
+                HttpContext http,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
@@ -200,25 +160,18 @@ namespace Gateway.Endpoints
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
-                var msg = new BusMessage
-                {
-                    Type = router.ResolveType(ms, resource),
-                    Resource = resource,
-                    Action = "Update",
-                    Id = id,
-                    Data = jsonBody
-                };
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Update", jsonBody, id);
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 await rpc.CallAsync(queue, payload, ct);
                 return Results.NoContent();
             }).RequireAuthorizationIfNotPublic("Update");
 
-            // DELETE /api/{ms}/{resource}/{id:int} -> Delete
             app.MapDelete("/api/{ms}/{resource}/{id:int}", async (
                 string ms,
                 string resource,
                 int id,
+                HttpContext http,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
@@ -228,25 +181,19 @@ namespace Gateway.Endpoints
                 var queue = router.ResolveQueue(ms);
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
-                var msg = new BusMessage
-                {
-                    Type = router.ResolveType(ms, resource),
-                    Resource = resource,
-                    Action = "Delete",
-                    Data = id.ToString()
-                };
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Delete", id.ToString());
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 await rpc.CallAsync(queue, payload, ct);
                 return Results.NoContent();
             }).RequireAuthorizationIfNotPublic("Delete");
 
-            // POST /api/{ms}/{resource}/actions/{action} -> Post custom action
             app.MapPost("/api/{ms}/{resource}/actions/{action}", async (
                 string ms,
                 string resource,
                 string action,
                 HttpRequest req,
+                HttpContext http,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
@@ -258,27 +205,20 @@ namespace Gateway.Endpoints
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
-                var msg = new BusMessage
-                {
-                    Type = router.ResolveType(ms, resource),
-                    Resource = resource,
-                    Action = action,
-                    Data = jsonBody,
-                    Id = null
-                };
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, action, jsonBody);
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
                 return Results.Text(result, "application/json");
             }).RequireAuthorizationIfNotPublic();
 
-            // POST /api/{ms}/{resource}/{id:int}/actions/{action} -> Post custom action to ID
             app.MapPost("/api/{ms}/{resource}/{id:int}/actions/{action}", async (
                 string ms,
                 string resource,
                 int id,
                 string action,
                 HttpRequest req,
+                HttpContext http,
                 IGatewayRouter router,
                 IRabbitRpcClient rpc,
                 CancellationToken ct) =>
@@ -290,14 +230,7 @@ namespace Gateway.Endpoints
                 if (queue is null) return Results.BadRequest("Unknown microservice.");
 
                 var jsonBody = await new StreamReader(req.Body).ReadToEndAsync(ct);
-                var msg = new BusMessage
-                {
-                    Type = router.ResolveType(ms, resource),
-                    Resource = resource,
-                    Action = action,
-                    Id = id,
-                    Data = jsonBody
-                };
+                var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, action, jsonBody, id);
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
@@ -305,6 +238,41 @@ namespace Gateway.Endpoints
             }).RequireAuthorizationIfNotPublic();
 
             return app;
+        }
+
+        private static BusMessage CreateBusMessage(
+            ClaimsPrincipal user,
+            BusServiceTypeEnum type,
+            string resource,
+            string action,
+            string? data = null,
+            int? id = null) =>
+            new()
+            {
+                Type = type,
+                Resource = resource,
+                Action = action,
+                Data = data,
+                Id = id,
+                Caller = CreateCaller(user)
+            };
+
+        private static CallerIdentity? CreateCaller(ClaimsPrincipal user)
+        {
+            if (user.Identity is not { IsAuthenticated: true })
+                return null;
+
+            return new CallerIdentity
+            {
+                Subject = user.FindFirst("sub")?.Value
+                    ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                Email = user.FindFirst("email")?.Value
+                    ?? user.FindFirst(ClaimTypes.Email)?.Value,
+                Username = user.FindFirst("preferred_username")?.Value
+                    ?? user.FindFirst("name")?.Value
+                    ?? user.Identity.Name,
+                Roles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray()
+            };
         }
     }
 }

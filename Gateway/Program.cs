@@ -65,19 +65,18 @@ namespace APIGateway
                 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddJwtBearer(o =>
                     {
-                        var keycloak = appSettings.Keycloak;
+                        var oidc = appSettings.Oidc;
 
-                        // Base Keycloak info
-                        o.Authority = keycloak.Authority;
-                        o.Audience = keycloak.Audience;
-                        o.MetadataAddress = $"{keycloak.Authority}/.well-known/openid-configuration";
-                        o.RequireHttpsMetadata = keycloak.RequireHttpsMetadata;
+                        var authority = oidc.Authority.TrimEnd('/') + "/";
+                        o.Authority = authority;
+                        o.Audience = oidc.Audience;
+                        o.MetadataAddress = $"{authority}.well-known/openid-configuration";
+                        o.RequireHttpsMetadata = oidc.RequireHttpsMetadata;
 
-                        // Token validation
                         o.TokenValidationParameters = new TokenValidationParameters
                         {
                             ValidateIssuer = true,
-                            ValidIssuer = keycloak.Authority,
+                            ValidIssuer = authority,
 
                             ValidateAudience = true,
                             ValidAudiences = ["account", "gc-front", "gc-gateway-api"],

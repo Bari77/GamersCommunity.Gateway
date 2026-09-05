@@ -1,53 +1,30 @@
-﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication;
 using System.Security.Claims;
 using System.Text.Json;
 
 namespace Gateway.Security
 {
-    /// <summary>
-    /// Applies a Keycloak-specific transformation to flatten realm and client roles into standard <see cref="ClaimTypes.Role"/> claims.
-    /// </summary>
-    /// <remarks>
-    /// This transformation reads Keycloak's JWT claims:
-    /// <list type="bullet">
-    /// <item><description><c>realm_access.roles</c> → adds roles as <c>realm:&lt;role&gt;</c></description></item>
-    /// <item><description><c>resource_access.&lt;clientId&gt;.roles</c> → adds roles as <c>&lt;clientId&gt;:&lt;role&gt;</c></description></item>
-    /// </list>
-    /// A marker claim (<c>__kc_roles_flattened</c>) is used to ensure idempotency
-    /// in case the transformation runs multiple times in the pipeline.
-    /// </remarks>
-    public sealed class KeycloakClaimsTransformation : IClaimsTransformation
+    public sealed class OidcClaimsTransformation : IClaimsTransformation
     {
         private const string RealmAccess = "realm_access";
         private const string ResourceAccess = "resource_access";
         private const string Roles = "roles";
-        private const string FlattenedMarkerType = "__kc_roles_flattened";
+        private const string Groups = "groups";
+        private const string FlattenedMarkerType = "__oidc_roles_flattened";
         private const string FlattenedMarkerValue = "1";
 
-        /// <summary>
-        /// Transforms the incoming <see cref="ClaimsPrincipal"/> by adding
-        /// normalized role claims derived from Keycloak token structure.
-        /// </summary>
-        /// <param name="principal">The authenticated principal to transform.</param>
-        /// <returns>
-        /// The same <see cref="ClaimsPrincipal"/> instance with additional role claims,
-        /// or the original principal if not authenticated or already processed.
-        /// </returns>
         public Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
         {
             if (principal.Identity is not ClaimsIdentity id || !id.IsAuthenticated)
                 return Task.FromResult(principal);
 
-            // Avoid duplicating on multiple calls
             if (id.HasClaim(FlattenedMarkerType, FlattenedMarkerValue))
                 return Task.FromResult(principal);
 
-            // Create a quick set of existing role values to avoid accidental duplicates
             var existingRoles = new HashSet<string>(
                 id.FindAll(ClaimTypes.Role).Select(c => c.Value),
                 StringComparer.Ordinal);
 
-            // 1) Realm roles -> add as "realm:<role>"
             var realmAccess = id.FindFirst(RealmAccess)?.Value;
             if (!string.IsNullOrWhiteSpace(realmAccess))
             {
@@ -69,11 +46,9 @@ namespace Gateway.Security
                 }
                 catch
                 {
-                    // Ignore parse errors: token may not contain expected JSON.
                 }
             }
 
-            // 2) Client roles -> add as "<clientId>:<role>"
             var resourceAccess = id.FindFirst(ResourceAccess)?.Value;
             if (!string.IsNullOrWhiteSpace(resourceAccess))
             {
@@ -99,11 +74,43 @@ namespace Gateway.Security
                 }
                 catch
                 {
-                    // Ignore parse errors: token may not contain expected JSON.
                 }
             }
 
-            // Marker to avoid repeated work
+            foreach (var groupClaim in id.FindAll(Groups))
+            {
+                var raw = groupClaim.Value;
+                if (string.IsNullOrWhiteSpace(raw))
+                    continue;
+
+                if (raw.StartsWith('['))
+                {
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(raw);
+                        if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var g in doc.RootElement.EnumerateArray())
+                            {
+                                if (g.ValueKind == JsonValueKind.String)
+                                {
+                                    var value = g.GetString();
+                                    if (!string.IsNullOrWhiteSpace(value) && existingRoles.Add(value))
+                                        id.AddClaim(new Claim(ClaimTypes.Role, value));
+                                }
+                            }
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+                else if (existingRoles.Add(raw))
+                {
+                    id.AddClaim(new Claim(ClaimTypes.Role, raw));
+                }
+            }
+
             id.AddClaim(new Claim(FlattenedMarkerType, FlattenedMarkerValue));
 
             return Task.FromResult(principal);
