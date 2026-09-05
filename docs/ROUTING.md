@@ -16,8 +16,8 @@ The configuration is defined in `appsettings.json` under the `GatewayRouting` se
 "GatewayRouting": {
   "Microservices": [
     {
-      "Id": "mainsite",
-      "Queue": "mainsite_queue",
+      "Id": "platform",
+      "Queue": "platform_queue",
       "Scope": "Private",
       "Tables": [
         {
@@ -104,11 +104,11 @@ Meaning:
 
 | Configuration                             | Example Route                  | Evaluated Action | Effective Scope        |
 | ----------------------------------------- | ------------------------------ | ---------------- | ---------------------- |
-| `GameTypes` (Private) → `List` (Public)   | `/api/mainsite/GameTypes`      | `List`           | 🟢 Public              |
-| `GameTypes` (Private) → no action defined | `/api/mainsite/GameTypes/123`  | `Get`            | 🔒 Private             |
-| `Countries` (Public) → no action override | `/api/mainsite/Countries/123`  | `Get`            | 🟢 Public              |
+| `GameTypes` (Private) → `List` (Public)   | `/api/platform/GameTypes`      | `List`           | 🟢 Public              |
+| `GameTypes` (Private) → no action defined | `/api/platform/GameTypes/123`  | `Get`            | 🔒 Private             |
+| `Countries` (Public) → no action override | `/api/platform/Countries/123`  | `Get`            | 🟢 Public              |
 | `Classes` (Public) → `List` (inherits)    | `/api/worldofwarcraft/Classes` | `List`           | 🟢 Public              |
-| Undefined table                           | `/api/mainsite/Users`          | Any              | ❌ Denied (BadRequest) |
+| Undefined table                           | `/api/platform/Users`          | Any              | ❌ Denied (BadRequest) |
 
 ---
 
@@ -116,11 +116,11 @@ Meaning:
 
 | HTTP Verb                       | Default Action | Example Path                |
 | ------------------------------- | -------------- | --------------------------- |
-| `GET /api/{ms}/{table}`         | `List`         | `/api/mainsite/GameTypes`   |
-| `GET /api/{ms}/{table}/{id}`    | `Get`          | `/api/mainsite/GameTypes/1` |
-| `POST /api/{ms}/{table}`        | `Create`       | `/api/mainsite/GameTypes`   |
-| `PUT /api/{ms}/{table}/{id}`    | `Update`       | `/api/mainsite/GameTypes/1` |
-| `DELETE /api/{ms}/{table}/{id}` | `Delete`       | `/api/mainsite/GameTypes/1` |
+| `GET /api/{ms}/{table}`         | `List`         | `/api/platform/GameTypes`   |
+| `GET /api/{ms}/{table}/{id}`    | `Get`          | `/api/platform/GameTypes/1` |
+| `POST /api/{ms}/{table}`        | `Create`       | `/api/platform/GameTypes`   |
+| `PUT /api/{ms}/{table}/{id}`    | `Update`       | `/api/platform/GameTypes/1` |
+| `DELETE /api/{ms}/{table}/{id}` | `Delete`       | `/api/platform/GameTypes/1` |
 
 These are mapped internally using  
 `RequireAuthorizationIfNotPublic("List")`, `"Create"`, `"Get"`, etc.,  
@@ -162,7 +162,7 @@ Example:
 
 ```
 Invalid GatewayRouting configuration:
- - Duplicate table 'Users' found in microservice 'MainSite'.
+ - Duplicate table 'Users' found in microservice 'Platform'.
  - Microservice 'WorldOfWarcraft' has no defined queue.
 ```
 

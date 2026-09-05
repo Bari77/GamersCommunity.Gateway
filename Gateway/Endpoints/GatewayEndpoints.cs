@@ -184,8 +184,8 @@ namespace Gateway.Endpoints
                 var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Update", jsonBody, id: id);
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
-                await rpc.CallAsync(queue, payload, ct);
-                return Results.NoContent();
+                var result = await rpc.CallAsync(queue, payload, ct);
+                return Results.Text(result, "application/json");
             }).RequireAuthorizationIfNotPublic("Update");
 
             app.MapPut("/api/{ms}/{resource}/{publicId:guid}", async (
@@ -207,8 +207,8 @@ namespace Gateway.Endpoints
                 var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Update", jsonBody, publicId: publicId);
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
-                await rpc.CallAsync(queue, payload, ct);
-                return Results.NoContent();
+                var result = await rpc.CallAsync(queue, payload, ct);
+                return Results.Text(result, "application/json");
             }).RequireAuthorizationIfNotPublic("Update");
 
             app.MapDelete("/api/{ms}/{resource}/{id:int}", async (
