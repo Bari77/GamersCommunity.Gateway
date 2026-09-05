@@ -123,7 +123,11 @@ namespace APIGateway
                 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
                 app.UseForwardedHeaders();
-                app.UseHttpsRedirection();
+                // Local `dotnet run` binds HTTP :5000 only; HTTPS redirect is for container/prod.
+                if (builder.Environment.IsEnvironment("Docker"))
+                {
+                    app.UseHttpsRedirection();
+                }
 
                 app.UseCors("cors_policy");
 
