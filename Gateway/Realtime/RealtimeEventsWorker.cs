@@ -126,6 +126,12 @@ public sealed class RealtimeEventsWorker(
             return;
         }
 
+        if (string.Equals(type, RealtimeEventTypes.ReportQueueUpdated, StringComparison.OrdinalIgnoreCase))
+        {
+            await DispatchReportQueueUpdatedAsync(json, ct);
+            return;
+        }
+
         logger.Debug("Ignoring unknown realtime event type '{Type}'.", type);
     }
 
@@ -242,5 +248,27 @@ public sealed class RealtimeEventsWorker(
         await hubContext.Clients
             .Group(RealtimeGroups.User(evt.RecipientKeycloak))
             .SendAsync(RealtimeHubMethods.NotificationCreated, payload, ct);
+    }
+
+    private async Task DispatchReportQueueUpdatedAsync(string json, CancellationToken ct)
+    {
+        var evt = JsonSerializer.Deserialize<ReportQueueUpdatedRealtimeEvent>(json, JsonOpts);
+        if (evt?.RecipientKeycloaks is not { Length: > 0 })
+        {
+            logger.Warning("Invalid report.queue.updated realtime payload.");
+            return;
+        }
+
+        var groups = evt.RecipientKeycloaks
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(RealtimeGroups.User)
+            .Distinct()
+            .ToArray();
+        if (groups.Length == 0)
+            return;
+
+        await hubContext.Clients
+            .Groups(groups)
+            .SendAsync(RealtimeHubMethods.ReportQueueUpdated, new { openCount = evt.OpenCount }, ct);
     }
 }
