@@ -39,7 +39,7 @@ public sealed class RabbitRpcClient : IRabbitRpcClient, IAsyncDisposable
             throw new BadRequestException("MESSAGE_NULL", "Message must not be null or empty.");
 
         var connection = await EnsureConnectionAsync(ct);
-        await using var channel = await connection.CreateChannelAsync(cancellationToken: ct);
+        await using var channel = await connection.CreateChannelAsync(cancellationToken: CancellationToken.None);
 
         var replyQueue = await channel.QueueDeclareAsync(
             queue: string.Empty,
@@ -47,7 +47,7 @@ public sealed class RabbitRpcClient : IRabbitRpcClient, IAsyncDisposable
             exclusive: true,
             autoDelete: true,
             arguments: null,
-            cancellationToken: ct);
+            cancellationToken: CancellationToken.None);
 
         var correlationId = Guid.NewGuid().ToString("N");
         var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -98,7 +98,7 @@ public sealed class RabbitRpcClient : IRabbitRpcClient, IAsyncDisposable
             {
                 try
                 {
-                    await channel.BasicAckAsync(ea.DeliveryTag, multiple: false, cancellationToken: ct);
+                    await channel.BasicAckAsync(ea.DeliveryTag, multiple: false, cancellationToken: CancellationToken.None);
                 }
                 catch (Exception ackEx)
                 {
@@ -113,7 +113,7 @@ public sealed class RabbitRpcClient : IRabbitRpcClient, IAsyncDisposable
                 queue: replyQueue.QueueName,
                 autoAck: false,
                 consumer: consumer,
-                cancellationToken: ct);
+                cancellationToken: CancellationToken.None);
 
             var props = new BasicProperties
             {
@@ -131,20 +131,25 @@ public sealed class RabbitRpcClient : IRabbitRpcClient, IAsyncDisposable
                 mandatory: false,
                 basicProperties: props,
                 body: Encoding.UTF8.GetBytes(payload),
-                cancellationToken: ct);
+                cancellationToken: CancellationToken.None);
 
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            linkedCts.CancelAfter(TimeSpan.FromSeconds(_settings.Timeout));
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(_settings.Timeout));
+            using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
 
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(Timeout.InfiniteTimeSpan, linkedCts.Token));
-            if (completed == tcs.Task)
+            try
             {
-                return await tcs.Task.ConfigureAwait(false);
+                return await tcs.Task.WaitAsync(waitCts.Token).ConfigureAwait(false);
             }
-
-            throw new GatewayTimeoutException(
-                "TIMEOUT",
-                $"No response received within the timeout period ({_settings.Timeout}s).");
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+            {
+                throw new GatewayTimeoutException(
+                    "TIMEOUT",
+                    $"No response received within the timeout period ({_settings.Timeout}s).");
+            }
         }
         finally
         {

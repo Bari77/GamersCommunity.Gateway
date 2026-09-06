@@ -47,6 +47,14 @@ namespace Gateway.Middlewares
         /// <returns>A task that represents the write operation to the response.</returns>
         private static Task HandleExceptionAsync(HttpContext context, Exception exception, IHostEnvironment environment)
         {
+            if (exception is OperationCanceledException && context.RequestAborted.IsCancellationRequested)
+            {
+                Log.Debug(
+                    "Trace ID: {TraceId} - Request aborted by the client.",
+                    context.TraceIdentifier);
+                return Task.CompletedTask;
+            }
+
             if (exception is RpcException rpcException)
             {
                 Log.Error(
