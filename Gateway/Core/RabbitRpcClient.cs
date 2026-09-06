@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Text.Json;
 using GamersCommunity.Core.Exceptions;
 using GamersCommunity.Core.Rabbit;
 using Gateway.Abstractions;
@@ -73,13 +74,26 @@ public sealed class RabbitRpcClient : IRabbitRpcClient, IAsyncDisposable
                         throw new RpcException("INVALID_RESPONSE", "Response cannot be deserialized.", responseJson);
 
                     if (!envelope.Ok)
-                        throw new RpcException(
+                    {
+                        var rpcContext = TryReadBusMessageContext(payload);
+                        _logger.Warning(
+                            "RPC error from queue '{Queue}' (corrId={CorrelationId}, resource={Resource}, action={Action}, type={Type}): [{Code}] {Message}",
+                            queue,
+                            correlationId,
+                            rpcContext.Resource ?? "-",
+                            rpcContext.Action ?? "-",
+                            rpcContext.Type ?? "-",
                             envelope.Error?.Code ?? "ERROR",
                             envelope.Error?.Message ?? "Unknown error");
 
+                        throw new RpcException(
+                            envelope.Error?.Code ?? "ERROR",
+                            envelope.Error?.Message ?? "Unknown error");
+                    }
+
                     tcs.TrySetResult(envelope.Data ?? string.Empty);
                 }
-                catch (JsonException jex)
+                catch (Newtonsoft.Json.JsonException jex)
                 {
                     _logger.Warning(jex, "Response is not a valid envelope. Returning raw body.");
                     tcs.TrySetResult(responseJson);
@@ -210,4 +224,26 @@ public sealed class RabbitRpcClient : IRabbitRpcClient, IAsyncDisposable
             _gate.Release();
         }
     }
+
+    private static (string? Resource, string? Action, string? Type) TryReadBusMessageContext(string payload)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(payload);
+            var root = doc.RootElement;
+            return (
+                ReadString(root, "resource"),
+                ReadString(root, "action"),
+                ReadString(root, "type"));
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return (null, null, null);
+        }
+    }
+
+    private static string? ReadString(JsonElement root, string property) =>
+        root.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
 }

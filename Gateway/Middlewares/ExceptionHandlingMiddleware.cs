@@ -1,4 +1,6 @@
 ﻿using GamersCommunity.Core.Exceptions;
+using Gateway.Abstractions;
+using Gateway.Extensions;
 using Serilog;
 using System.Net;
 using System.Text.Json;
@@ -57,9 +59,23 @@ namespace Gateway.Middlewares
 
             if (exception is RpcException rpcException)
             {
+                var request = GatewayRequestLogContext.From(context);
+                var queue = request.Microservice is { Length: > 0 } ms
+                    ? context.RequestServices.GetService<IGatewayRouter>()?.ResolveQueue(ms)
+                    : null;
+
                 Log.Error(
-                    "Trace ID: {TraceId} - RpcException: {Message}",
+                    "Trace ID: {TraceId} - RpcException on {Method} {Path} (ms={Microservice}, queue={Queue}, resource={Resource}, action={Action}, id={Id}, publicId={PublicId}): [{Code}] {Message}",
                     context.TraceIdentifier,
+                    request.Method,
+                    request.Path,
+                    request.Microservice ?? "-",
+                    queue ?? "-",
+                    request.Resource ?? "-",
+                    request.Action ?? "-",
+                    request.Id ?? "-",
+                    request.PublicId ?? "-",
+                    rpcException.Code,
                     rpcException.Message);
             }
             else
