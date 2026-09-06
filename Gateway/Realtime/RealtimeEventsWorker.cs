@@ -136,14 +136,13 @@ public sealed class RealtimeEventsWorker(
 
         var payload = new
         {
-            id = evt.Message.Id,
             publicId = evt.Message.PublicId,
             content = evt.Message.Content,
             idSender = evt.Message.IdSender,
             idReceiver = evt.Message.IdReceiver,
             isRead = evt.Message.IsRead,
             creationDate = UtcDateTimeJsonConverter.AsUtc(evt.Message.CreationDate),
-            parentMessageId = evt.Message.ParentMessageId,
+            parentPublicId = evt.Message.ParentPublicId,
             parentContent = evt.Message.ParentContent,
         };
 

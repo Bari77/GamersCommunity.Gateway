@@ -10,13 +10,12 @@ public sealed class MessageCreatedRealtimeEvent
 
 public sealed class MessageRealtimePayload
 {
-    public int Id { get; init; }
     public Guid PublicId { get; init; }
     public string Content { get; init; } = "";
     public int IdSender { get; init; }
     public int IdReceiver { get; init; }
     public bool IsRead { get; init; }
     public DateTime CreationDate { get; init; }
-    public int? ParentMessageId { get; init; }
+    public Guid? ParentPublicId { get; init; }
     public string? ParentContent { get; init; }
 }
