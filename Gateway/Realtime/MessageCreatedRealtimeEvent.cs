@@ -17,4 +17,6 @@ public sealed class MessageRealtimePayload
     public int IdReceiver { get; init; }
     public bool IsRead { get; init; }
     public DateTime CreationDate { get; init; }
+    public int? ParentMessageId { get; init; }
+    public string? ParentContent { get; init; }
 }

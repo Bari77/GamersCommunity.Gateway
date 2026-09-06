@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using GamersCommunity.Core.Rabbit;
 using Gateway.Hubs;
+using Gateway.Serialization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
@@ -20,6 +21,7 @@ public sealed class RealtimeEventsWorker(
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new UtcDateTimeJsonConverter() },
     };
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -140,7 +142,9 @@ public sealed class RealtimeEventsWorker(
             idSender = evt.Message.IdSender,
             idReceiver = evt.Message.IdReceiver,
             isRead = evt.Message.IsRead,
-            creationDate = evt.Message.CreationDate,
+            creationDate = UtcDateTimeJsonConverter.AsUtc(evt.Message.CreationDate),
+            parentMessageId = evt.Message.ParentMessageId,
+            parentContent = evt.Message.ParentContent,
         };
 
         await hubContext.Clients
@@ -194,7 +198,7 @@ public sealed class RealtimeEventsWorker(
             linkUrl = n.LinkUrl,
             isRead = n.IsRead,
             payloadJson = n.PayloadJson,
-            creationDate = n.CreationDate,
+            creationDate = UtcDateTimeJsonConverter.AsUtc(n.CreationDate),
         };
 
         await hubContext.Clients

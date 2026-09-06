@@ -6,6 +6,7 @@ using Gateway.Health;
 using Gateway.Hubs;
 using Gateway.Middlewares;
 using Gateway.Realtime;
+using Gateway.Serialization;
 using Gateway.Validators;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -114,7 +115,10 @@ namespace APIGateway
                     });
 
                 builder.Services.AddAuthorization();
-                builder.Services.AddSignalR();
+                builder.Services.AddSignalR().AddJsonProtocol((options) =>
+                {
+                    options.PayloadSerializerOptions.Converters.Add(new UtcDateTimeJsonConverter());
+                });
                 builder.Services.AddHostedService<RealtimeEventsWorker>();
 
                 builder.Services.AddHealthChecks().AddCheck<MicroservicesHealthCheck>("microservices");
