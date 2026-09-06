@@ -75,8 +75,7 @@ public sealed class RabbitRpcClient : IRabbitRpcClient, IAsyncDisposable
                     if (!envelope.Ok)
                         throw new RpcException(
                             envelope.Error?.Code ?? "ERROR",
-                            envelope.Error?.Message ?? "Unknown error",
-                            envelope.Error?.Details);
+                            envelope.Error?.Message ?? "Unknown error");
 
                     tcs.TrySetResult(envelope.Data ?? string.Empty);
                 }

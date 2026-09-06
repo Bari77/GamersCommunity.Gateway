@@ -8,6 +8,7 @@ public static class RealtimeQueues
 public static class RealtimeEventTypes
 {
     public const string MessageCreated = "message.created";
+    public const string ConversationUpdated = "conversation.updated";
     public const string FriendUpdated = "friend.updated";
     public const string NotificationCreated = "notification.created";
 }
@@ -15,11 +16,18 @@ public static class RealtimeEventTypes
 public static class RealtimeHubMethods
 {
     public const string MessageCreated = "message.created";
+    public const string ConversationUpdated = "conversation.updated";
     public const string FriendUpdated = "friend.updated";
     public const string NotificationCreated = "notification.created";
 }
 
 public static class RealtimeGroups
 {
-    public static string User(string keycloakSubject) => $"user:{keycloakSubject}";
+    public static string User(string keycloakSubject)
+    {
+        if (Guid.TryParse(keycloakSubject, out var guid))
+            return $"user:{guid:D}";
+
+        return $"user:{keycloakSubject}";
+    }
 }

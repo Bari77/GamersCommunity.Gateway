@@ -97,9 +97,14 @@ namespace Gateway.Endpoints
                 var msg = CreateBusMessage(http.User, router.ResolveType(ms, resource), resource, "Create", jsonBody);
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
-                var id = await rpc.CallAsync(queue, payload, ct);
+                var result = await rpc.CallAsync(queue, payload, ct);
+                var createdId = ReadCreatedResourceId(result);
+                if (!string.IsNullOrWhiteSpace(createdId))
+                {
+                    http.Response.Headers.Location = $"/api/{ms}/{resource}/{createdId}";
+                }
 
-                return Results.Created($"/api/{ms}/{resource}/{id}", id);
+                return CreatedJson(result);
             }).RequireAuthorizationIfNotPublic("Create");
 
             app.MapGet("/api/{ms}/{resource}", async (
@@ -119,7 +124,7 @@ namespace Gateway.Endpoints
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
-                return Results.Text(result, "application/json");
+                return JsonBody(result);
             }).RequireAuthorizationIfNotPublic("List");
 
             app.MapGet("/api/{ms}/{resource}/{id:int}", async (
@@ -140,7 +145,7 @@ namespace Gateway.Endpoints
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
-                return Results.Text(result, "application/json");
+                return JsonBody(result);
             }).RequireAuthorizationIfNotPublic("Get");
 
             app.MapGet("/api/{ms}/{resource}/{publicId:guid}", async (
@@ -161,7 +166,7 @@ namespace Gateway.Endpoints
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
-                return Results.Text(result, "application/json");
+                return JsonBody(result);
             }).RequireAuthorizationIfNotPublic("Get");
 
             app.MapPut("/api/{ms}/{resource}/{id:int}", async (
@@ -184,7 +189,7 @@ namespace Gateway.Endpoints
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
-                return Results.Text(result, "application/json");
+                return JsonBody(result);
             }).RequireAuthorizationIfNotPublic("Update");
 
             app.MapPut("/api/{ms}/{resource}/{publicId:guid}", async (
@@ -207,7 +212,7 @@ namespace Gateway.Endpoints
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
-                return Results.Text(result, "application/json");
+                return JsonBody(result);
             }).RequireAuthorizationIfNotPublic("Update");
 
             app.MapDelete("/api/{ms}/{resource}/{id:int}", async (
@@ -273,7 +278,7 @@ namespace Gateway.Endpoints
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
-                return Results.Text(result, "application/json");
+                return JsonBody(result);
             }).RequireAuthorizationIfNotPublic();
 
             app.MapPost("/api/{ms}/{resource}/{id:int}/actions/{action}", async (
@@ -298,7 +303,7 @@ namespace Gateway.Endpoints
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
-                return Results.Text(result, "application/json");
+                return JsonBody(result);
             }).RequireAuthorizationIfNotPublic();
 
             app.MapPost("/api/{ms}/{resource}/{publicId:guid}/actions/{action}", async (
@@ -323,10 +328,90 @@ namespace Gateway.Endpoints
 
                 var payload = JsonSerializer.Serialize(msg, JsonOpts);
                 var result = await rpc.CallAsync(queue, payload, ct);
-                return Results.Text(result, "application/json");
+                return JsonBody(result);
             }).RequireAuthorizationIfNotPublic();
 
             return app;
+        }
+
+        private static IResult CreatedJson(string payload) =>
+            Results.Text(NormalizeJsonPayload(payload), "application/json", statusCode: StatusCodes.Status201Created);
+
+        private static IResult JsonBody(string payload) =>
+            Results.Text(NormalizeJsonPayload(payload), "application/json");
+
+        private static string NormalizeJsonPayload(string payload)
+        {
+            if (string.IsNullOrWhiteSpace(payload))
+                return "null";
+
+            var current = payload.Trim();
+            for (var i = 0; i < 2; i++)
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(current);
+                    if (doc.RootElement.ValueKind != JsonValueKind.String)
+                        return current;
+
+                    var inner = doc.RootElement.GetString();
+                    if (string.IsNullOrWhiteSpace(inner) || !IsJsonToken(inner))
+                        return current;
+
+                    current = inner.Trim();
+                }
+                catch (JsonException)
+                {
+                    return JsonSerializer.Serialize(payload);
+                }
+            }
+
+            return current;
+        }
+
+        private static bool IsJsonToken(string payload)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(payload);
+                return true;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+
+        private static string? ReadCreatedResourceId(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return null;
+
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (root.TryGetProperty("publicId", out var publicId) && publicId.ValueKind == JsonValueKind.String)
+                        return publicId.GetString();
+                    if (root.TryGetProperty("id", out var id))
+                        return id.ValueKind == JsonValueKind.Number ? id.GetRawText() : id.GetString();
+                    return null;
+                }
+
+                if (root.ValueKind == JsonValueKind.String)
+                    return root.GetString();
+                if (root.ValueKind == JsonValueKind.Number)
+                    return root.GetRawText();
+            }
+            catch (JsonException)
+            {
+                var trimmed = json.Trim().Trim('"');
+                return Guid.TryParse(trimmed, out var guid) ? guid.ToString() : trimmed;
+            }
+
+            return null;
         }
 
         private static BusMessage CreateBusMessage(

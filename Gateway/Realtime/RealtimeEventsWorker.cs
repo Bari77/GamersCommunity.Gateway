@@ -108,6 +108,12 @@ public sealed class RealtimeEventsWorker(
             return;
         }
 
+        if (string.Equals(type, RealtimeEventTypes.ConversationUpdated, StringComparison.OrdinalIgnoreCase))
+        {
+            await DispatchConversationUpdatedAsync(json, ct);
+            return;
+        }
+
         if (string.Equals(type, RealtimeEventTypes.FriendUpdated, StringComparison.OrdinalIgnoreCase))
         {
             await DispatchFriendUpdatedAsync(json, ct);
@@ -126,9 +132,7 @@ public sealed class RealtimeEventsWorker(
     private async Task DispatchMessageCreatedAsync(string json, CancellationToken ct)
     {
         var evt = JsonSerializer.Deserialize<MessageCreatedRealtimeEvent>(json, JsonOpts);
-        if (evt?.Message is null
-            || string.IsNullOrWhiteSpace(evt.SenderKeycloak)
-            || string.IsNullOrWhiteSpace(evt.ReceiverKeycloak))
+        if (evt?.Message is null || evt.RecipientKeycloaks is not { Length: > 0 })
         {
             logger.Warning("Invalid message.created realtime payload.");
             return;
@@ -137,18 +141,52 @@ public sealed class RealtimeEventsWorker(
         var payload = new
         {
             publicId = evt.Message.PublicId,
+            conversationPublicId = evt.Message.ConversationPublicId,
             content = evt.Message.Content,
             idSender = evt.Message.IdSender,
-            idReceiver = evt.Message.IdReceiver,
-            isRead = evt.Message.IsRead,
+            senderPublicId = evt.Message.SenderPublicId,
+            senderNickname = evt.Message.SenderNickname,
+            senderDiscriminator = evt.Message.SenderDiscriminator,
+            senderAvatarUrl = evt.Message.SenderAvatarUrl,
             creationDate = UtcDateTimeJsonConverter.AsUtc(evt.Message.CreationDate),
             parentPublicId = evt.Message.ParentPublicId,
             parentContent = evt.Message.ParentContent,
         };
 
-        await hubContext.Clients
-            .Groups([RealtimeGroups.User(evt.SenderKeycloak), RealtimeGroups.User(evt.ReceiverKeycloak)])
-            .SendAsync(RealtimeHubMethods.MessageCreated, payload, ct);
+        var groups = evt.RecipientKeycloaks
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(RealtimeGroups.User)
+            .Distinct()
+            .ToArray();
+        if (groups.Length == 0)
+            return;
+
+        await hubContext.Clients.Groups(groups).SendAsync(RealtimeHubMethods.MessageCreated, payload, ct);
+    }
+
+    private async Task DispatchConversationUpdatedAsync(string json, CancellationToken ct)
+    {
+        var evt = JsonSerializer.Deserialize<ConversationUpdatedRealtimeEvent>(json, JsonOpts);
+        if (evt is null
+            || evt.ConversationPublicId == Guid.Empty
+            || evt.RecipientKeycloaks is not { Length: > 0 })
+        {
+            logger.Warning("Invalid conversation.updated realtime payload.");
+            return;
+        }
+
+        var groups = evt.RecipientKeycloaks
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(RealtimeGroups.User)
+            .Distinct()
+            .ToArray();
+        if (groups.Length == 0)
+            return;
+
+        await hubContext.Clients.Groups(groups).SendAsync(
+            RealtimeHubMethods.ConversationUpdated,
+            new { publicId = evt.ConversationPublicId, deleted = evt.Deleted },
+            ct);
     }
 
     private async Task DispatchFriendUpdatedAsync(string json, CancellationToken ct)

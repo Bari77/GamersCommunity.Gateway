@@ -10,8 +10,9 @@ namespace Gateway.Middlewares
     /// and returns a normalized JSON error response.
     /// </summary>
     /// <remarks>
-    /// In <c>Development</c> or <c>Testing</c> environments, the stack trace is included in the response body
-    /// for troubleshooting. In other environments, only minimal information is returned.
+    /// Microservice <see cref="RpcException"/> errors are logged without a stack trace: the consumer already
+    /// recorded it. Other exceptions still dump their stack. In <c>Development</c> or <c>Testing</c>,
+    /// the stack is included in the HTTP body only for non-RPC failures.
     /// </remarks>
     /// <param name="next">The next middleware in the pipeline.</param>
     /// <param name="environment">The hosting environment used to adjust error details.</param>
@@ -46,7 +47,17 @@ namespace Gateway.Middlewares
         /// <returns>A task that represents the write operation to the response.</returns>
         private static Task HandleExceptionAsync(HttpContext context, Exception exception, IHostEnvironment environment)
         {
-            Log.Error(exception, "Trace ID: {TraceId} - An unhandled exception occurred.", context.TraceIdentifier);
+            if (exception is RpcException rpcException)
+            {
+                Log.Error(
+                    "Trace ID: {TraceId} - RpcException: {Message}",
+                    context.TraceIdentifier,
+                    rpcException.Message);
+            }
+            else
+            {
+                Log.Error(exception, "Trace ID: {TraceId} - An unhandled exception occurred.", context.TraceIdentifier);
+            }
 
             if (context.Response.HasStarted)
             {
@@ -60,7 +71,7 @@ namespace Gateway.Middlewares
                 TraceId = context.TraceIdentifier
             };
 
-            if (environment.IsDevelopment() || environment.IsEnvironment("Testing"))
+            if (exception is not RpcException && (environment.IsDevelopment() || environment.IsEnvironment("Testing")))
             {
                 response.Exception = exception.StackTrace;
             }
