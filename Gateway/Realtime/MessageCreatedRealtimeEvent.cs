@@ -18,6 +18,7 @@ public sealed class MessageRealtimePayload
     public string SenderDiscriminator { get; init; } = "";
     public string SenderAvatarUrl { get; init; } = "";
     public DateTime CreationDate { get; init; }
+    public string Kind { get; init; } = "text";
     public Guid? ParentPublicId { get; init; }
     public string? ParentContent { get; init; }
 }

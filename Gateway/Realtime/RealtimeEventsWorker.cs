@@ -149,6 +149,7 @@ public sealed class RealtimeEventsWorker(
             senderDiscriminator = evt.Message.SenderDiscriminator,
             senderAvatarUrl = evt.Message.SenderAvatarUrl,
             creationDate = UtcDateTimeJsonConverter.AsUtc(evt.Message.CreationDate),
+            kind = string.IsNullOrWhiteSpace(evt.Message.Kind) ? "text" : evt.Message.Kind,
             parentPublicId = evt.Message.ParentPublicId,
             parentContent = evt.Message.ParentContent,
         };
