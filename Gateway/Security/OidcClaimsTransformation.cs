@@ -15,11 +15,15 @@ namespace Gateway.Security
 
         public Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
         {
-            if (principal.Identity is not ClaimsIdentity id || !id.IsAuthenticated)
+            if (principal.Identity is not ClaimsIdentity source || !source.IsAuthenticated)
                 return Task.FromResult(principal);
 
-            if (id.HasClaim(FlattenedMarkerType, FlattenedMarkerValue))
+            if (source.HasClaim(FlattenedMarkerType, FlattenedMarkerValue))
                 return Task.FromResult(principal);
+
+            // Clone: auth may reuse the same identity across concurrent requests,
+            // and ClaimsIdentity forbids AddClaim while FindAll is enumerating.
+            var id = source.Clone();
 
             var existingRoles = new HashSet<string>(
                 id.FindAll(ClaimTypes.Role).Select(c => c.Value),
@@ -77,7 +81,7 @@ namespace Gateway.Security
                 }
             }
 
-            foreach (var groupClaim in id.FindAll(Groups))
+            foreach (var groupClaim in id.FindAll(Groups).ToList())
             {
                 var raw = groupClaim.Value;
                 if (string.IsNullOrWhiteSpace(raw))
@@ -95,8 +99,8 @@ namespace Gateway.Security
                                 if (g.ValueKind == JsonValueKind.String)
                                 {
                                     var value = g.GetString();
-                                    if (!string.IsNullOrWhiteSpace(value) && existingRoles.Add(value))
-                                        id.AddClaim(new Claim(ClaimTypes.Role, value));
+                                    if (!string.IsNullOrWhiteSpace(value) && existingRoles.Add(value!))
+                                        id.AddClaim(new Claim(ClaimTypes.Role, value!));
                                 }
                             }
                         }
@@ -113,7 +117,7 @@ namespace Gateway.Security
 
             id.AddClaim(new Claim(FlattenedMarkerType, FlattenedMarkerValue));
 
-            return Task.FromResult(principal);
+            return Task.FromResult(new ClaimsPrincipal(id));
         }
     }
 }

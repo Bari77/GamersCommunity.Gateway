@@ -38,7 +38,6 @@ namespace Gateway.Endpoints
             services.AddOptions();
             services.AddScoped<IClaimsTransformation, OidcClaimsTransformation>();
             services.AddSingleton<Serilog.ILogger>(sp => Log.Logger);
-            services.AddSingleton<RabbitMQProducer>();
             services.AddSingleton<IRabbitRpcClient, RabbitRpcClient>();
             services.AddSingleton<IGatewayRouter, GatewayRouter>();
             return services;

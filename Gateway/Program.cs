@@ -3,7 +3,9 @@ using GamersCommunity.Core.Rabbit;
 using Gateway.Configuration;
 using Gateway.Endpoints;
 using Gateway.Health;
+using Gateway.Hubs;
 using Gateway.Middlewares;
+using Gateway.Realtime;
 using Gateway.Validators;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -89,6 +91,17 @@ namespace APIGateway
                         // Avoid HTML redirect on 401 when using APIs
                         o.Events = new JwtBearerEvents
                         {
+                            OnMessageReceived = ctx =>
+                            {
+                                var accessToken = ctx.Request.Query["access_token"];
+                                var path = ctx.HttpContext.Request.Path;
+                                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                                {
+                                    ctx.Token = accessToken;
+                                }
+
+                                return Task.CompletedTask;
+                            },
                             OnChallenge = ctx =>
                             {
                                 ctx.HandleResponse();
@@ -101,6 +114,8 @@ namespace APIGateway
                     });
 
                 builder.Services.AddAuthorization();
+                builder.Services.AddSignalR();
+                builder.Services.AddHostedService<RealtimeEventsWorker>();
 
                 builder.Services.AddHealthChecks().AddCheck<MicroservicesHealthCheck>("microservices");
                 builder.Services.AddGatewayServices();
@@ -110,7 +125,8 @@ namespace APIGateway
                     options.AddPolicy("cors_policy", p => p
                         .WithOrigins(appSettings.AllowedOrigins)
                         .AllowAnyHeader()
-                        .AllowAnyMethod());
+                        .AllowAnyMethod()
+                        .AllowCredentials());
                 });
 
                 if (builder.Environment.IsEnvironment("Docker"))
@@ -135,6 +151,7 @@ namespace APIGateway
                 app.UseAuthorization();
 
                 app.MapGatewayEndpoints();
+                app.MapHub<MessengerHub>("/hubs/messenger");
 
                 Log.Information($"Started in {builder.Environment.EnvironmentName} environment...");
 
