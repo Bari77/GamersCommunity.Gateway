@@ -15,6 +15,7 @@ namespace Gateway.Realtime;
 public sealed class RealtimeEventsWorker(
     IOptions<RabbitMQSettings> opts,
     IHubContext<MessengerHub> hubContext,
+    IHubContext<WowLfgHub> wowLfgHubContext,
     ILogger logger) : BackgroundService
 {
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -129,6 +130,12 @@ public sealed class RealtimeEventsWorker(
         if (string.Equals(type, RealtimeEventTypes.ReportQueueUpdated, StringComparison.OrdinalIgnoreCase))
         {
             await DispatchReportQueueUpdatedAsync(json, ct);
+            return;
+        }
+
+        if (string.Equals(type, RealtimeEventTypes.LfgMessageCreated, StringComparison.OrdinalIgnoreCase))
+        {
+            await DispatchLfgMessageCreatedAsync(json, ct);
             return;
         }
 
@@ -270,5 +277,31 @@ public sealed class RealtimeEventsWorker(
         await hubContext.Clients
             .Groups(groups)
             .SendAsync(RealtimeHubMethods.ReportQueueUpdated, new { openCount = evt.OpenCount }, ct);
+    }
+
+    private async Task DispatchLfgMessageCreatedAsync(string json, CancellationToken ct)
+    {
+        var evt = JsonSerializer.Deserialize<LfgMessageCreatedRealtimeEvent>(json, JsonOpts);
+        if (evt?.Message is null || evt.Message.PublicId == Guid.Empty)
+        {
+            logger.Warning("Invalid lfg.message.created realtime payload.");
+            return;
+        }
+
+        var payload = new
+        {
+            publicId = evt.Message.PublicId,
+            body = evt.Message.Body,
+            senderNickname = evt.Message.SenderNickname,
+            senderDiscriminator = evt.Message.SenderDiscriminator,
+            playerPublicId = evt.Message.PlayerPublicId,
+            platformUserPublicId = evt.Message.PlatformUserPublicId,
+            senderAvatarUrl = evt.Message.SenderAvatarUrl,
+            creationDate = UtcDateTimeJsonConverter.AsUtc(evt.Message.CreationDate),
+        };
+
+        await wowLfgHubContext.Clients
+            .Group(RealtimeGroups.WowLfgGlobal)
+            .SendAsync(RealtimeHubMethods.LfgMessageCreated, payload, ct);
     }
 }

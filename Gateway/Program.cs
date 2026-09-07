@@ -156,6 +156,7 @@ namespace APIGateway
 
                 app.MapGatewayEndpoints();
                 app.MapHub<MessengerHub>("/hubs/messenger");
+                app.MapHub<WowLfgHub>("/hubs/wow-lfg");
 
                 Log.Information($"Started in {builder.Environment.EnvironmentName} environment...");
 

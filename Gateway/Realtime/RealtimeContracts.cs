@@ -12,6 +12,7 @@ public static class RealtimeEventTypes
     public const string FriendUpdated = "friend.updated";
     public const string NotificationCreated = "notification.created";
     public const string ReportQueueUpdated = "report.queue.updated";
+    public const string LfgMessageCreated = "lfg.message.created";
 }
 
 public static class RealtimeHubMethods
@@ -21,10 +22,13 @@ public static class RealtimeHubMethods
     public const string FriendUpdated = "friend.updated";
     public const string NotificationCreated = "notification.created";
     public const string ReportQueueUpdated = "report.queue.updated";
+    public const string LfgMessageCreated = "lfg.message.created";
 }
 
 public static class RealtimeGroups
 {
+    public const string WowLfgGlobal = "wow:lfg:global";
+
     public static string User(string keycloakSubject)
     {
         if (Guid.TryParse(keycloakSubject, out var guid))
