@@ -53,12 +53,12 @@ namespace Gateway.Core
             if (ms is null) return false; // unknown microservice → always private
 
             var res = GetResource(microservice, resource, false);
-            if (resource is null) return false; // table not declared → private
+            if (res is null) return false; // table not declared → private
 
             // Look for explicit action override
             if (!string.IsNullOrEmpty(action))
             {
-                var act = res!.Actions.FirstOrDefault(a =>
+                var act = res.Actions.FirstOrDefault(a =>
                     a.Name.Equals(action, StringComparison.OrdinalIgnoreCase));
 
                 if (act?.Scope != null)
@@ -66,7 +66,7 @@ namespace Gateway.Core
             }
 
             // Inherit from table → microservice
-            var resScope = res!.Scope ?? ms.Scope;
+            var resScope = res.Scope ?? ms.Scope;
             return resScope == AccessScope.Public;
         }
 
