@@ -12,9 +12,10 @@ namespace Gateway.Middlewares
     /// and returns a normalized JSON error response.
     /// </summary>
     /// <remarks>
-    /// Microservice <see cref="RpcException"/> errors are logged without a stack trace: the consumer already
-    /// recorded it. Other exceptions still dump their stack. In <c>Development</c> or <c>Testing</c>,
-    /// the stack is included in the HTTP body only for non-RPC failures.
+    /// Expected <see cref="AppException"/> failures are logged as a single message line without a stack trace:
+    /// they are controlled errors, and microservice <see cref="RpcException"/> stacks were already recorded by
+    /// the consumer. Only unexpected exceptions dump their stack, both in the log and — under
+    /// <c>Development</c> or <c>Testing</c> — in the HTTP body.
     /// </remarks>
     /// <param name="next">The next middleware in the pipeline.</param>
     /// <param name="environment">The hosting environment used to adjust error details.</param>
@@ -57,31 +58,7 @@ namespace Gateway.Middlewares
                 return Task.CompletedTask;
             }
 
-            if (exception is RpcException rpcException)
-            {
-                var request = GatewayRequestLogContext.From(context);
-                var queue = request.Microservice is { Length: > 0 } ms
-                    ? context.RequestServices.GetService<IGatewayRouter>()?.ResolveQueue(ms)
-                    : null;
-
-                Log.Error(
-                    "Trace ID: {TraceId} - RpcException on {Method} {Path} (ms={Microservice}, queue={Queue}, resource={Resource}, action={Action}, id={Id}, publicId={PublicId}): [{Code}] {Message}",
-                    context.TraceIdentifier,
-                    request.Method,
-                    request.Path,
-                    request.Microservice ?? "-",
-                    queue ?? "-",
-                    request.Resource ?? "-",
-                    request.Action ?? "-",
-                    request.Id ?? "-",
-                    request.PublicId ?? "-",
-                    rpcException.Code,
-                    rpcException.Message);
-            }
-            else
-            {
-                Log.Error(exception, "Trace ID: {TraceId} - An unhandled exception occurred.", context.TraceIdentifier);
-            }
+            LogException(context, exception);
 
             if (context.Response.HasStarted)
             {
@@ -95,7 +72,7 @@ namespace Gateway.Middlewares
                 TraceId = context.TraceIdentifier
             };
 
-            if (exception is not RpcException && (environment.IsDevelopment() || environment.IsEnvironment("Testing")))
+            if (exception is not AppException && (environment.IsDevelopment() || environment.IsEnvironment("Testing")))
             {
                 response.Exception = exception.StackTrace;
             }
@@ -116,6 +93,53 @@ namespace Gateway.Middlewares
 
             var json = JsonSerializer.Serialize(response);
             return context.Response.WriteAsync(json);
+        }
+
+        /// <summary>
+        /// Writes a single error log entry, with a stack trace only for unexpected exceptions.
+        /// </summary>
+        /// <param name="context">The current HTTP context.</param>
+        /// <param name="exception">The thrown exception.</param>
+        private static void LogException(HttpContext context, Exception exception)
+        {
+            if (exception is not AppException appException)
+            {
+                Log.Error(exception, "Trace ID: {TraceId} - An unhandled exception occurred.", context.TraceIdentifier);
+                return;
+            }
+
+            var request = GatewayRequestLogContext.From(context);
+
+            if (appException is RpcException)
+            {
+                var queue = request.Microservice is { Length: > 0 } ms
+                    ? context.RequestServices.GetService<IGatewayRouter>()?.ResolveQueue(ms)
+                    : null;
+
+                Log.Error(
+                    "Trace ID: {TraceId} - RpcException on {Method} {Path} (ms={Microservice}, queue={Queue}, resource={Resource}, action={Action}, id={Id}, publicId={PublicId}): [{Code}] {Message}",
+                    context.TraceIdentifier,
+                    request.Method,
+                    request.Path,
+                    request.Microservice ?? "-",
+                    queue ?? "-",
+                    request.Resource ?? "-",
+                    request.Action ?? "-",
+                    request.Id ?? "-",
+                    request.PublicId ?? "-",
+                    appException.Code,
+                    appException.Message);
+                return;
+            }
+
+            Log.Error(
+                "Trace ID: {TraceId} - {ExceptionType} on {Method} {Path}: [{Code}] {Message}",
+                context.TraceIdentifier,
+                exception.GetType().Name,
+                request.Method,
+                request.Path,
+                appException.Code,
+                appException.Message);
         }
     }
 }
