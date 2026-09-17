@@ -1,0 +1,24 @@
+{
+  "$schema": "https://cdn.statically.io/gh/nguyenngoclongdev/cdn/main/schema/v11/terminal-keeper.json",
+  "theme": "neon",
+  "active": "default",
+  "activateOnStartup": true,
+  "keepExistingTerminals": false,
+  "noClear": true,
+  "sessions": {
+    "default": [
+      {
+        "name": "Gateway",
+        "cwd": "Gateway",
+        "icon": "radio-tower",
+        "color": "terminal.ansiCyan",
+        "isTransient": true,
+        "focus": true,
+        "autoExecuteCommands": true,
+        "commands": [
+          "dotnet run"
+        ]
+      }
+    ]
+  }
+}
