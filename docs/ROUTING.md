@@ -108,6 +108,7 @@ Meaning:
 | `GameTypes` (Private) → no action defined | `/api/platform/GameTypes/123`  | `Get`            | 🔒 Private             |
 | `Countries` (Public) → no action override | `/api/platform/Countries/123`  | `Get`            | 🟢 Public              |
 | `Classes` (Public) → `List` (inherits)    | `/api/worldofwarcraft/Classes` | `List`           | 🟢 Public              |
+| `Players.Resolve` (Public)                | `/api/leagueoflegends/Players/actions/Resolve` | `Resolve` | 🟢 Public              |
 | Undefined table                           | `/api/platform/Users`          | Any              | ❌ Denied (BadRequest) |
 
 ---
