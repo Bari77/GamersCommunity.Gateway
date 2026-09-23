@@ -157,8 +157,11 @@ namespace APIGateway
                 app.MapGatewayEndpoints();
                 app.MapHub<MessengerHub>("/hubs/messenger");
                 app.MapHub<WowLfgHub>("/hubs/wow-lfg");
+                app.MapHub<LolLfgHub>("/hubs/lol-lfg");
 
                 Log.Information($"Started in {builder.Environment.EnvironmentName} environment...");
+
+                app.Lifetime.ApplicationStopping.Register(() => Log.Information("Stopping ..."));
 
                 await app.RunAsync();
             }

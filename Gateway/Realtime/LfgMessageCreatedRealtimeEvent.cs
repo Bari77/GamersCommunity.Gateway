@@ -4,12 +4,15 @@ public sealed class LfgMessageCreatedRealtimeEvent
 {
     public string Type { get; init; } = RealtimeEventTypes.LfgMessageCreated;
 
+    public string? Game { get; init; }
+
     public required LfgMessageRealtimePayload Message { get; init; }
 }
 
 public sealed class LfgMessageRealtimePayload
 {
     public Guid PublicId { get; init; }
+    public string Kind { get; init; } = "";
     public string Body { get; init; } = "";
     public string SenderNickname { get; init; } = "";
     public string SenderDiscriminator { get; init; } = "";

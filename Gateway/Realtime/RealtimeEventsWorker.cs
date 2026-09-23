@@ -16,6 +16,7 @@ public sealed class RealtimeEventsWorker(
     IOptions<RabbitMQSettings> opts,
     IHubContext<MessengerHub> hubContext,
     IHubContext<WowLfgHub> wowLfgHubContext,
+    IHubContext<LolLfgHub> lolLfgHubContext,
     ILogger logger) : BackgroundService
 {
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -291,6 +292,7 @@ public sealed class RealtimeEventsWorker(
         var payload = new
         {
             publicId = evt.Message.PublicId,
+            kind = string.IsNullOrWhiteSpace(evt.Message.Kind) ? "lfg" : evt.Message.Kind,
             body = evt.Message.Body,
             senderNickname = evt.Message.SenderNickname,
             senderDiscriminator = evt.Message.SenderDiscriminator,
@@ -299,6 +301,15 @@ public sealed class RealtimeEventsWorker(
             senderAvatarUrl = evt.Message.SenderAvatarUrl,
             creationDate = UtcDateTimeJsonConverter.AsUtc(evt.Message.CreationDate),
         };
+
+        var game = string.IsNullOrWhiteSpace(evt.Game) ? "worldofwarcraft" : evt.Game;
+        if (string.Equals(game, "leagueoflegends", StringComparison.OrdinalIgnoreCase))
+        {
+            await lolLfgHubContext.Clients
+                .Group(RealtimeGroups.LolLfgGlobal)
+                .SendAsync(RealtimeHubMethods.LfgMessageCreated, payload, ct);
+            return;
+        }
 
         await wowLfgHubContext.Clients
             .Group(RealtimeGroups.WowLfgGlobal)
