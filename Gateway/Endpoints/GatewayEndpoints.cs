@@ -79,6 +79,29 @@ namespace Gateway.Endpoints
                 }
             });
 
+            app.MapGet("/api/gateway/availability", async (
+                IGatewayRouter router,
+                IRabbitRpcClient rpc,
+                CancellationToken ct) =>
+            {
+                var items = new System.Collections.Concurrent.ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
+                await Parallel.ForEachAsync(router.GetRegisteredMicroservices(), ct, async (id, token) =>
+                {
+                    var queue = router.ResolveQueue(id);
+                    items[id] = !string.IsNullOrWhiteSpace(queue) && await rpc.HasActiveConsumerAsync(queue!, token);
+                });
+
+                return Results.Json(
+                    new
+                    {
+                        items = items
+                            .OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase)
+                            .Select(entry => new { id = entry.Key, available = entry.Value }),
+                    },
+                    JsonOpts);
+            }).AllowAnonymous();
+
             app.MapPost("/api/{ms}/{resource}", async (
                 string ms,
                 string resource,

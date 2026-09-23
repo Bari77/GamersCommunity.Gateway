@@ -19,5 +19,11 @@
         /// The result contains the raw response message as a string.
         /// </returns>
         Task<string> CallAsync(string queue, string payload, CancellationToken ct);
+
+        /// <summary>
+        /// Returns whether at least one consumer is listening on <paramref name="queue"/>.
+        /// A missing queue is treated as no consumer.
+        /// </summary>
+        Task<bool> HasActiveConsumerAsync(string queue, CancellationToken ct);
     }
 }

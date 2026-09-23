@@ -3,6 +3,7 @@ using System.Text.Json;
 using GamersCommunity.Core.Exceptions;
 using GamersCommunity.Core.Rabbit;
 using Gateway.Abstractions;
+using Gateway.Exceptions;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using RabbitMQ.Client;
@@ -41,6 +42,28 @@ public sealed class RabbitRpcClient : IRabbitRpcClient, IAsyncDisposable
 
         var connection = await EnsureConnectionAsync(ct);
         await using var channel = await connection.CreateChannelAsync(cancellationToken: CancellationToken.None);
+
+        try
+        {
+            var declared = await channel.QueueDeclarePassiveAsync(queue, CancellationToken.None);
+            if (declared.ConsumerCount == 0)
+            {
+                throw new ServiceUnavailableException(
+                    "UNAVAILABLE",
+                    $"No consumer is listening on '{queue}'.");
+            }
+        }
+        catch (ServiceUnavailableException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(ex, "Queue '{Queue}' is not reachable.", queue);
+            throw new ServiceUnavailableException(
+                "UNAVAILABLE",
+                $"Microservice queue '{queue}' is unavailable.");
+        }
 
         var replyQueue = await channel.QueueDeclareAsync(
             queue: string.Empty,
@@ -181,6 +204,24 @@ public sealed class RabbitRpcClient : IRabbitRpcClient, IAsyncDisposable
         }
     }
 
+    public async Task<bool> HasActiveConsumerAsync(string queue, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(queue))
+            return false;
+
+        try
+        {
+            var connection = await EnsureConnectionAsync(ct);
+            await using var channel = await connection.CreateChannelAsync(cancellationToken: ct);
+            return await QueueHasConsumerAsync(channel, queue);
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(ex, "Could not inspect consumers on '{Queue}'.", queue);
+            return false;
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _gate.WaitAsync();
@@ -196,6 +237,19 @@ public sealed class RabbitRpcClient : IRabbitRpcClient, IAsyncDisposable
         {
             _gate.Release();
             _gate.Dispose();
+        }
+    }
+
+    private static async Task<bool> QueueHasConsumerAsync(IChannel channel, string queue)
+    {
+        try
+        {
+            var declared = await channel.QueueDeclarePassiveAsync(queue, CancellationToken.None);
+            return declared.ConsumerCount > 0;
+        }
+        catch
+        {
+            return false;
         }
     }
 
