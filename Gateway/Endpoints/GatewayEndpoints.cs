@@ -38,7 +38,11 @@ namespace Gateway.Endpoints
             services.AddOptions();
             services.AddScoped<IClaimsTransformation, OidcClaimsTransformation>();
             services.AddSingleton<Serilog.ILogger>(sp => Log.Logger);
-            services.AddSingleton<IRabbitRpcClient, RabbitRpcClient>();
+            services.AddSingleton<IRabbitRpcClient>(sp =>
+                new RabbitRpcClient(
+                    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMQSettings>>(),
+                    sp.GetRequiredService<Serilog.ILogger>(),
+                    new RabbitRpcClientOptions { RequireActiveConsumer = true }));
             services.AddSingleton<IGatewayRouter, GatewayRouter>();
             return services;
         }
