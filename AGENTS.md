@@ -10,6 +10,9 @@ Do **not** run `dotnet run` or long-lived Gateway/Docker app processes. The deve
 
 - Game and Platform actions are declared in Gateway `appsettings*.json` routing tables. Keep Public/Private scopes intentional.
 - Prefer aligning new resources with existing games (WoW / LoL patterns) and the Template when the shape is shared.
+- Keep game `contracts/federation.contract.json` aligned with the matching microservice block here.
+- Do **not** register a `template` microservice on the main Gateway (Template uses its own DevGateway).
+- Bus-only Platform RPC (`Friends.AreFriends`, managed Conversations) stays off HTTP — see `docs/ROUTING.md`.
 
 ## Shared logic
 

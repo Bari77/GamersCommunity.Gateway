@@ -232,3 +232,19 @@ app.MapGatewayEndpoints(gatewayRouting);
 -   Keep scopes explicit for public endpoints (`Scope: "Public"`) to avoid surprises.
 -   Avoid defining “catch-all” microservices without any table list — they will block all access.
 -   Validation will help detect inconsistencies early, before any deployment.
+
+---
+
+## Bus-only vs Gateway (Platform)
+
+Not every `IBusService` is an HTTP Gateway resource.
+
+| Kind | Examples | Rule |
+|------|----------|------|
+| **Gateway-routed** | Users, Friends (List/Get/Create/Update/**Delete**), Conversations, Messages, Posts, … | Declared under `GatewayRouting` → Public/Private as configured |
+| **Bus-only RPC** | `Friends.AreFriends`, managed Conversation ENSURE_* helpers | Called by game Consumers via Core `Platform*Client` on `platform_queue` — **do not** add HTTP actions |
+| **Internal catalog (not on bus)** | Cities, FriendStatuses, EventsUsersStatuses | Seed / FK helpers. Marked `[BusInternal]` in Platform.Consumer — excluded from Scrutor bus registration and **not** in GatewayRouting |
+
+Game remotes keep `contracts/federation.contract.json` in sync with the game microservice block in these appsettings files.
+
+There is **no** `template` microservice on the main Gateway. The Template scaffold uses compose DevGateway (`template_queue`) only — see Games.Template README.
