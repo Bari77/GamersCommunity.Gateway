@@ -6,7 +6,7 @@ using Gateway.Health;
 using Gateway.Hubs;
 using Gateway.Middlewares;
 using Gateway.Realtime;
-using Gateway.Serialization;
+using GamersCommunity.Core.Serialization;
 using Gateway.Validators;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;

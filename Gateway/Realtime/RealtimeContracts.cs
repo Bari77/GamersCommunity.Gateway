@@ -1,10 +1,5 @@
 namespace Gateway.Realtime;
 
-public static class RealtimeQueues
-{
-    public const string Gateway = "gateway_realtime_queue";
-}
-
 public static class RealtimeEventTypes
 {
     public const string MessageCreated = "message.created";
