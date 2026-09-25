@@ -1,0 +1,22 @@
+---
+description: GamersCommunity engineering standards (AgentKit module)
+alwaysApply: true
+---
+
+# Engineering standards
+
+Follow the canonical document:
+
+`AgentKit/ENGINEERING_STANDARDS.md`
+
+(when the submodule is present at the product-repo root)
+
+Key constraints:
+
+- Published `@bari77/*` / Core packages only — no `file:` or local `dist` dependencies.
+- Lockstep versions for all `@bari77/gc-*` in a given Front.
+- Migrations only via `Add-Migration.ps1`; class-based seeds; no seed data in migrations.
+- Shared logic → Core or DevKit; game pillars → also update Games.Template.
+- Module Federation: `provideGameRemoteKernel` on app.config and exported routes; no `providedIn: "root"` for kernel-dependent services.
+- Player / guild / team sheets use workspace grids.
+- Never start long-lived servers; never commit/push unless asked.

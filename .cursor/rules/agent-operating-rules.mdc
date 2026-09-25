@@ -1,0 +1,13 @@
+---
+description: Operating rules for AI agents in GamersCommunity repos
+alwaysApply: true
+---
+
+# Agent operating rules
+
+- Do **not** run `dotnet run`, `npm start`, `ng serve`, or app Docker Compose stacks. One-shot `dotnet build` / `npm test` / `npm ci` are allowed.
+- Do **not** commit or push unless the user explicitly asks.
+- Do **not** add `postinstall` hacks that rewrite dependency `package.json` or patch `node_modules`.
+- Search Template / sibling games / Core / DevKit before inventing a new pattern.
+- Prefer extraction of structural twins over copy-paste across LoL ↔ WoW ↔ Template.
+- Read `AgentKit/AGENTS.base.md` and repo `AGENTS.override.md` (if any) after the thin root `AGENTS.md`.

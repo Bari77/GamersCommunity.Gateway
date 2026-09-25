@@ -1,0 +1,3 @@
+[submodule "AgentKit"]
+	path = AgentKit
+	url = https://github.com/Bari77/GamersCommunity.AgentKit.git
