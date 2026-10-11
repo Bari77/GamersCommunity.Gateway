@@ -10,4 +10,5 @@ alwaysApply: true
 - Do **not** add `postinstall` hacks that rewrite dependency `package.json` or patch `node_modules`.
 - Search Template / sibling games / Core / DevKit before inventing a new pattern.
 - Prefer extraction of structural twins over copy-paste across LoL ↔ WoW ↔ Template.
+- Keep **cross-game UX consistent**: same player job → same Nebular / `@bari77/*` interaction model as the sibling (see `cross-game-ux-consistency.mdc`).
 - Read `AgentKit/AGENTS.base.md` and repo `AGENTS.override.md` (if any) after the thin root `AGENTS.md`.

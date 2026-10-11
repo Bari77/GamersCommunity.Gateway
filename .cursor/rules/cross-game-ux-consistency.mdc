@@ -1,0 +1,27 @@
+---
+description: Keep player-facing UX and control patterns consistent across games
+alwaysApply: true
+---
+
+# Cross-game UX consistency
+
+Players move between Platform shell remotes (LoL, WoW, future games). **The same job must feel the same** unless the game domain truly differs.
+
+## Before inventing a UI/control pattern
+
+1. **Search the sibling game and Template** for the same surface (roster, applications, media, LFG, workspace widgets, playground session, etc.).
+2. **Reuse the same component family and interaction model** — e.g. if LoL roster uses Nebular `nb-select` + `gc-decision-prompt`, WoW must not ship a native `<select>` or a row of ad-hoc buttons for the same actions.
+3. Prefer **Nebular** (and existing `@bari77/gc-*` primitives) already used on that surface in another Front. Do not “simplify” with raw HTML controls when the sibling already established a Nebular pattern.
+4. Domain labels may differ (`captain` vs `leader`, team vs guild); **layout, affordances, confirmation flow, and empty/loading states** should stay aligned.
+
+## When changing one game
+
+- If you improve a shared interaction in one Front, **port the same UX to the structural twin** (LoL ↔ WoW) in the same change set when the surface exists there.
+- Pillar / scaffold patterns also update **Games.Template** so `gc-create-game` clones inherit the coherent UX.
+- Extract to **DevKit** when the control is game-agnostic; keep game-local only the permission matrix and copy.
+
+## Anti-patterns
+
+- Different control types for the same task across games (native select vs `nb-select`, icon-only kick vs rank combo, etc.).
+- Skipping confirmation on one game when the sibling confirms destructive membership actions.
+- Inventing a one-off layout for a sheet widget that already has a twin in another game.
