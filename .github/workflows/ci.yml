@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (.NET)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Authenticate GitHub Packages (NuGet)
+        run: |
+          dotnet nuget update source github \
+            --username "${{ github.actor }}" \
+            --password "${{ secrets.GITHUB_TOKEN }}" \
+            --store-password-in-clear-text \
+            --configfile nuget.config
+
+      - name: Restore
+        run: dotnet restore GamersCommunity.Gateway.sln
+
+      - name: Build
+        run: dotnet build GamersCommunity.Gateway.sln -c Release --no-restore
