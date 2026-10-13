@@ -1,14 +1,13 @@
 using System.Text;
 using System.Text.Json;
 using GamersCommunity.Core.Rabbit;
-using Gateway.Hubs;
 using GamersCommunity.Core.Realtime;
 using GamersCommunity.Core.Serialization;
+using Gateway.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using Serilog;
 using ILogger = Serilog.ILogger;
 
 namespace Gateway.Realtime;

@@ -1,19 +1,18 @@
-﻿namespace Gateway.Enums
+namespace Gateway.Enums;
+
+/// <summary>
+/// Enumerates the possible access scopes that can be applied to 
+/// a microservice, table, or action definition.
+/// </summary>
+public enum AccessScope
 {
     /// <summary>
-    /// Enumerates the possible access scopes that can be applied to 
-    /// a microservice, table, or action definition.
+    /// Indicates that the resource or action can be accessed without authentication.
     /// </summary>
-    public enum AccessScope
-    {
-        /// <summary>
-        /// Indicates that the resource or action can be accessed without authentication.
-        /// </summary>
-        Public,
+    Public,
 
-        /// <summary>
-        /// Indicates that authentication is required to access the resource or action.
-        /// </summary>
-        Private
-    }
+    /// <summary>
+    /// Indicates that authentication is required to access the resource or action.
+    /// </summary>
+    Private
 }

@@ -1,6 +1,3 @@
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-
 namespace Gateway.Extensions;
 
 internal static class GatewayRequestLogContext
@@ -27,12 +24,3 @@ internal static class GatewayRequestLogContext
     private static string? ReadRoute(RouteValueDictionary? route, string key) =>
         route is not null && route.TryGetValue(key, out var value) ? value?.ToString() : null;
 }
-
-internal readonly record struct GatewayRequestLogContextData(
-    string Method,
-    string Path,
-    string? Microservice,
-    string? Resource,
-    string? Action,
-    string? Id,
-    string? PublicId);
