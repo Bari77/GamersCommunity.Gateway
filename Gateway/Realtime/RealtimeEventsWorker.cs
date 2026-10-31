@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using GamersCommunity.Core.Rabbit;
+using GamersCommunity.Core.Telemetry;
 using GamersCommunity.Core.Realtime;
 using GamersCommunity.Core.Serialization;
 using Gateway.Hubs;
@@ -55,6 +57,10 @@ public sealed class RealtimeEventsWorker(
                 var consumer = new AsyncEventingBasicConsumer(channel);
                 consumer.ReceivedAsync += async (_, ea) =>
                 {
+                    using var trace = BusTelemetry.StartConsumer(
+                        $"realtime {RealtimeQueues.Gateway}",
+                        ea.BasicProperties?.Headers,
+                        RealtimeQueues.Gateway);
                     try
                     {
                         var json = Encoding.UTF8.GetString(ea.Body.ToArray());
@@ -63,6 +69,7 @@ public sealed class RealtimeEventsWorker(
                     }
                     catch (Exception ex)
                     {
+                        trace.Activity?.SetStatus(ActivityStatusCode.Error);
                         logger.Error(ex, "Failed to process realtime event.");
                         await channel.BasicNackAsync(ea.DeliveryTag, false, requeue: false, cancellationToken: stoppingToken);
                     }

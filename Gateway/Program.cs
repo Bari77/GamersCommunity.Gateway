@@ -1,5 +1,6 @@
 using GamersCommunity.Core.Logging;
 using GamersCommunity.Core.Rabbit;
+using GamersCommunity.Core.Telemetry;
 using GamersCommunity.Core.Serialization;
 using Gateway.Configuration;
 using Gateway.Endpoints;
@@ -56,10 +57,11 @@ public class Program
 
             #region Init Logger
 
-            Logger.Initialize(loggerSettings, "Gateway", builder.Environment);
+            Logger.Initialize(loggerSettings, "Gateway", builder.Environment, builder.Configuration);
             // Clear all default logging providers, if you need to print in console,
             // http headers or DB queries, comment this line
             builder.Logging.ClearProviders();
+            builder.Services.AddGamersCommunityTelemetry(builder.Configuration, builder.Environment);
 
             #endregion
 
